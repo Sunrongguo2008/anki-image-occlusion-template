@@ -1,33 +1,36 @@
 # Anki 交互式遮挡卡片模板
-⚠️我本人编程能力很差，因此用了Claude3.7辅助编写，可能会有bug（反正目前我没发现bug），强烈欢迎Issues和PR。
+⚠️我本人编程能力有限，因此用了Claude3.7辅助编写，可能会有bug（反正目前我没发现bug），强烈欢迎Issues和PR为项目做贡献~~帮我~~。
 ## 介绍
-这是一个增强型Anki卡片模板，允许用户在图片上创建可交互的矩形遮挡区域。特别适用于语言学习、医学解剖等需要记忆图片细节的场景。
+这是一个增强型Anki图片遮挡模板，允许用户在图片上创建多个可交互的矩形遮挡区域。特别适用于语言学习、医学解剖等需要记忆图片细节的场景。
 
 ## 特色功能
+📱 **跨平台兼容**  
+- 不需要使用插件维持运转
+- 可以在AnkiDroid移动端制作/修改卡片！
+- 自动处理不同屏幕尺寸  
+- 触摸操作优化（长按/双击）
+
 ✅ **智能遮挡系统**  
 - 支持依次揭示遮挡（点击遮挡、键盘快捷键、点击按钮）
 - 支持自定义揭示顺序
 - 可创建多个矩形遮挡层
 - 揭示/隐藏单个或多个遮挡区域
 
-🎨 **可视化编辑**  
+✏ **可视化编辑**  
 - 电脑端Anki/Ankidroid均可直接制卡
 - 拖拽创建/移动遮挡
 - 右键删除/双击编辑序号
 - 实时显示遮挡顺序编号
 
+🎨 **漂亮的外观**  
+- 借鉴~~偷走~~了[e-chehil的quizify模板](https://github.com/e-chehil/anki-quizify)
+- ~~有些冗余代码没有删干净~~
 
-📱 **跨平台兼容**  
-- 不需要使用插件维持运转
-- 完美适配AnkiDroid移动端  
-- 自动处理不同屏幕尺寸  
-- 触摸操作优化（长按/双击）
-- 
+## 使用方法
 ⌨️ **快捷键支持**  
 - `W`键：揭示下一个遮挡  
 - `Q`键：隐藏最新揭示的遮挡  
 
-## 使用方法
 
 ### 查看卡片
 1. 正常浏览时所有内容被遮挡
@@ -59,9 +62,20 @@
 
 ## 兼容性
 - Anki Desktop (2.1.50+)  
-- AnkiDroid (最新版)  
-- AnkiMobile (需测试)
+- AnkiDroid (最新版)
 
 ## 注意事项
 1. 编辑模式仅用于编辑，编辑模式下无法正常复习卡片。复习需要关闭编辑模式。
-2. 修改图片后需要重新设置遮挡  
+2. 修改图片后需要重新设置遮挡
+
+## 反馈
+- 本人编程能力有限，强烈欢迎PR为项目做贡献~~帮我~~
+- 欢迎开issue讨论
+
+##截图
+<img src="https://github.com/user-attachments/assets/ad92706a-a09c-4d5c-bbb5-127b793af87b" width="400px" />
+<img src="https://github.com/user-attachments/assets/5c47f48a-2a84-41b9-ace2-c678c8f70e5b" width="400px" />
+<img src="https://github.com/user-attachments/assets/adc6c5e5-03ce-4ec0-b199-c2015918703b" width="400px" />
+<img src="https://github.com/user-attachments/assets/eca604c4-9159-45cb-86bd-5c94e4d2c809" width="400px" />
+<img src="https://github.com/user-attachments/assets/953755f6-a208-4b61-b4e6-107c64935542" width="400px" />
+<img src="https://github.com/user-attachments/assets/1c26fec2-3bad-4d6a-b36f-d101f63b4a7e" width="400px" />
