@@ -1,0 +1,355 @@
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.main-image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0;
+}
+
+.main-image {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.main-image img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.mask-rect {
+    transition: background-color 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 10;
+}
+
+.controls {
+    margin: 10px auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+}
+
+
+
+.deck-info {
+//    font-weight: bold;
+    font-size: 0.8em;
+    margin-bottom: 5px;
+    color: #555;
+}
+.nightMode .deck-info {
+    color: #C3C3C3;
+}
+
+.question {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.tags {
+    margin-top: 15px;
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+}
+.nightMode .tags {
+    color: #C3C3C3;
+}
+
+@media (max-width: 600px) {
+    .controls {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    button {
+        margin-bottom: 5px;
+        width: 90%;
+    }
+}
+/* -------------------------------------------------- 卡片 */
+.container {
+    background-color: var(--card-bg);
+    border-radius: 0.5em;
+    border: 20px solid var(--card-border);
+    box-shadow: 1px 4px 6px var(--card-shadow);
+    color: var(--text-primary);
+    font-family: var(--font-primary);
+    font-size: auto;
+    line-height: 1.7;
+    margin: auto;
+    max-width: var(--card-max-width);
+    text-align: var(--card-text-align);
+    word-wrap: break-word;
+}
+
+.quizify-flashcard ::selection {
+    background-color: var(--text-bg-selected);
+    color: var(--text-fg-selected);
+}
+/* -------------------------------------------------- 色彩 */
+.card {
+    background-color: #e4dfd7;
+    --card-bg: #fffefa;
+    --card-border: transparent;
+    --card-shadow: #d4c4b740;
+    --text-primary: #475164;
+    --text-fg-selected: #fff;
+    --text-bg-selected: #5e7987;
+    --blank-fg: #126e82;
+    --popup-bg: #db8540;
+    --comment-bg: #363433;
+    --comment-fg: #fffef9;
+    --reveal-fg: #2376b7;
+    --reveal-fg-hover: #134857;
+    --reveal-bg-hover: #f7c173;
+    --caption-fg: #826b48;
+    --caption-border: #e5d3aa;
+    --caption-fg-hover: #4d4030;
+    --caption-fg-active: #fffef9;
+    --caption-bg-active: #87723e;
+    --option-bg: #f7f4ed;
+    --option-border: transparent;
+    --feedback-fg: var(--card-bg);
+    --feedback-bg: #c1b2a3;
+    --option-fg-hover: #624941;
+    --option-bg-hover: #dad4cb;
+    --correct-fg: #1a6840;
+    --correct-bg: #f0f5e5;
+    --incorrect-fg: #a61b29;
+    --incorrect-bg: #fbeee2;
+    --incomplete-fg: #5e5314;
+    --incomplete-bg: #f9f4dc;
+    --bold-fg: #a7535a;
+    --italic-fg: #b14b28;
+    --bold-italic-fg: #cf4813;
+    --underline-fg: #497568;
+    --divider: #8a988e;
+    --table-fg: var(--caption-fg-hover);
+    --table-bg: var(--caption-border);
+    --link-fg: #2775b6;
+    --link-fg-active: #1177b0;
+    --deck-fg: var(--caption-fg);
+    --tag-fg: #333333cc;
+    --tag-bg: #3333330f;
+    --tag-fg-active: #333333;
+    --tag-bg-active: #3333331a;
+}
+
+.card.nightMode {
+    background-color: #22202e;
+    --card-bg: #322f3b;
+    --card-border: transparent;
+    --card-shadow: #13112440;
+    --text-primary: #c0c4c3;
+    --text-fg-selected: #000;
+    --text-bg-selected: #a7a8bd;
+    --blank-fg: #66a9c9;
+    --popup-bg: #db8540;
+    --comment-bg: #373834;
+    --comment-fg: #e2e1e4;
+    --reveal-fg: #edc3ae;
+    --reveal-fg-hover: #f8e0b0;
+    --reveal-bg-hover: #525288;
+    --caption-fg: #869d9d;
+    --caption-border: #22202E;
+    --caption-fg-hover: #C0C4C3;
+    --caption-fg-active: #35333c;
+    --caption-bg-active: #93b5cf;
+    --option-bg: #3e3841;
+    --option-border: transparent;
+    --feedback-fg: #c4cbcf;
+    --feedback-bg: #47484c;
+    --option-fg-hover: #fffef8;
+    --option-bg-hover: #5d655f;
+    --correct-fg: #b2cf87;
+    --correct-bg: transparent;
+    --incorrect-fg: #e77c8e;
+    --incorrect-bg: transparent;
+    --incomplete-fg: #e2c17c;
+    --incomplete-bg: transparent;
+    --bold-fg: #f07c82;
+    --italic-fg: #ea8958;
+    --bold-italic-fg: #f86b1d;
+    --underline-fg: #69a794;
+    --divider: #74759b;
+    --link-fg: #5cb3cc;
+    --link-fg-active: #29b7cb;
+    --tag-fg: #ffffffb3;
+    --tag-bg: #ffffff14;
+    --tag-fg-active: #ffffff;
+    --tag-bg-active: #ffffff1f;
+}
+
+
+/* -------------------------------------------------- 背景 */
+.card {
+    cursor: default;
+    padding: 0.5em 0;
+    
+	font-size: 20px;
+	text-align: center;
+}
+
+html:not(.mobile) .card {
+    padding: 0.5em;
+}
+
+.card::-webkit-scrollbar {
+  display: none;
+}
+
+
+/* -------------------------------------------------- 表格 */
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0 auto;
+    max-width: 100%;
+}
+
+table thead {
+    background-color: var(--table-bg);
+    color: var(--table-fg);
+}
+
+table tr:nth-of-type(even) {
+    background-color: var(--table-bg);
+    color: var(--table-fg);
+}
+
+table tr:first-child th:first-child {
+    border-top-left-radius: 0.5em;
+}
+
+table tr:first-child th:last-child {
+    border-top-right-radius: 0.5em;
+}
+
+table tr:last-child td:first-child {
+    border-bottom-left-radius: 0.5em;
+}
+
+table tr:last-child td:last-child {
+    border-bottom-right-radius: 0.5em;
+}
+
+table th {
+    border-bottom: solid 1px var(--card-border);
+    border-left: solid 1px var(--card-border);
+    border-top: solid 1px var(--card-border);
+    padding: 0.5em;
+}
+
+table th:last-child {
+    border-right: solid 1px var(--card-border);
+}
+
+table td {
+    border-bottom: solid 1px var(--card-border);
+    border-left: solid 1px var(--card-border);
+    padding: 0.5em;
+}
+
+table td:last-of-type {
+    border-right: solid 1px var(--card-border);
+}
+
+/* -------------------------------------------------- 链接 */
+a, a:visited {
+    text-decoration: none;
+    color: var(--link-fg);
+}
+a:hover, a:active {
+    text-decoration: underline;
+    color: var(--link-fg-active);
+}
+
+/* -------------------------------------------------- 格式 */
+b, strong {
+    color: var(--bold-fg);
+}
+
+i, em {
+    color: var(--italic-fg);
+}
+
+b i, b em, strong i, strong em {
+    color: var(--bold-italic-fg);
+}
+
+u {
+    color: var(--underline-fg);
+    text-underline-offset: 0.2em;
+}
+
+.correct {
+    background-color: var(--correct-bg);
+    color: var(--correct-fg);
+}
+
+.incorrect {
+    background-color: var(--incorrect-bg);
+    color: var(--incorrect-fg);
+}
+
+.incomplete,
+.not-selected {
+    background-color: var(--incomplete-bg);
+    color: var(--incomplete-fg);
+}
+
+/* -------------------------------------------------- 字体 */
+@font-face {
+  font-family: "Jiashu";
+  src: url("_HYJiaShu-55U.ttf");
+}
+
+@font-face {
+  font-family: "Sassoon Montessori";
+  src: url("_SassoonMontessoriW01Regular.ttf");
+}
+
+@font-face {
+  font-family: "Youkai";
+  src: url("_HYYouKai-55W.ttf");
+}
+
+@font-face {
+  font-family: "Sassoon Book";
+  src: url("_SassoonBookW01Regular.ttf");
+}
+
+@font-face {
+    font-family: "Yasong";
+    src: url("_FZPingXYSK.TTF");
+}
+
+@font-face {
+    font-family: "Georgia";
+    src: url("_georgia.ttf");
+}
+
+
+<script>
+    // Breadcrumbs to current deck
+    var deckEl = document.querySelector(".deck-info");
+    var subDecks = deckEl.innerHTML.split("::").filter(Boolean);
+    html = [];
+    subDecks.forEach((subDeck1) => {
+        html.push("<span class='subdeck'>" + subDeck + "</span>");
+    });
+    deckEl.innerHTML = html.join("&nbsp;/&nbsp;");
+</script>
+

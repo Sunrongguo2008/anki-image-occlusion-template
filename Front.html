@@ -1,0 +1,564 @@
+<!-- Front Template -->
+<div class="container">
+    <div class="deck-info">{{Deck}}</div>
+    <div class="question">{{Question}}</div>
+    
+    <div class="main-image-container">
+        <div class="main-image" id="mainImage" style="position: relative; display: inline-block;">
+            {{Image}}
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button id="toggleEditMode">开启创建遮挡</button>
+        <button id="copyCoords">复制遮挡区域坐标</button>
+        <button id="revealNext">揭示下一个遮挡</button>
+    </div>
+    
+<div class="note"><hr>{{Note}}</div>
+<div class="tags">{{Tags}}</div></div>
+</div>
+
+<script>
+(() => {
+    // 初始化变量
+    let isDragging = false;
+    let isMovingMask = false;
+    let startX, startY;
+    let currentRect = null;
+    let rects = [];
+    let currentVisibleIndex = -1;
+    let editMode = false;
+    let selectedMask = null;
+    let offsetX, offsetY;
+    
+    // 获取图片容器和图片元素
+    const imgContainer = document.getElementById('mainImage');
+    const img = imgContainer.querySelector('img');
+    const toggleEditBtn = document.getElementById('toggleEditMode');
+    
+    // 确保图片加载完成后再初始化
+    if (img.complete) {
+        initializeAfterImageLoad();
+    } else {
+        img.onload = initializeAfterImageLoad;
+    }
+    
+    function initializeAfterImageLoad() {
+        // 阻止图片默认拖动行为
+        img.style.userSelect = 'none';
+        img.style.webkitUserSelect = 'none';
+        img.style.webkitTouchCallout = 'none';
+        img.style.userDrag = 'none';
+        img.style.webkitUserDrag = 'none';
+        img.draggable = false;
+        img.addEventListener('dragstart', (e) => e.preventDefault());
+        
+        // 从Opinions字段加载已有坐标
+        loadSavedCoordinates();
+        
+        // 设置按钮状态
+        updateEditModeUI();
+    }
+    
+    // 从Opinions字段加载坐标
+    function loadSavedCoordinates() {
+        const savedCoords = '{{Opinions}}'.split(';').filter(Boolean);
+        if (savedCoords.length > 0) {
+            try {
+                savedCoords.forEach((coord, index) => {
+                    const [xPercent, yPercent, widthPercent, heightPercent, orderNum] = coord.split(',').map(Number);
+                    const order = isNaN(orderNum) ? index + 1 : orderNum;
+                    
+                    const x = (xPercent / 100) * img.width;
+                    const y = (yPercent / 100) * img.height;
+                    const width = (widthPercent / 100) * img.width;
+                    const height = (heightPercent / 100) * img.height;
+                    
+                    createRect(x, y, width, height, order);
+                });
+                
+                // 按顺序排序遮挡
+                sortRectsByOrder();
+            } catch (e) {
+                console.error('加载坐标时出错:', e);
+            }
+        }
+    }
+    
+    // 按序号排序矩形
+    function sortRectsByOrder() {
+        rects.sort((a, b) => a.order - b.order);
+    }
+    
+    // 创建矩形遮挡
+    function createRect(x, y, width, height, order = rects.length + 1) {
+        const rect = document.createElement('div');
+        rect.className = 'mask-rect';
+        rect.order = order;
+        
+        Object.assign(rect.style, {
+            position: 'absolute',
+            left: x + 'px',
+            top: y + 'px',
+            width: width + 'px',
+            height: height + 'px',
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            border: '2px solid red',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            cursor: editMode ? 'move' : 'pointer',
+            touchAction: 'none'
+        });
+        
+        // 创建序号元素
+        const orderElement = document.createElement('div');
+        orderElement.className = 'mask-order';
+        orderElement.textContent = order;
+        Object.assign(orderElement.style, {
+            color: 'white',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            pointerEvents: 'none'
+        });
+        rect.appendChild(orderElement);
+        
+        // 单击切换透明度
+        rect.addEventListener('click', (e) => {
+            if (!editMode) {
+                toggleMaskVisibility(rect);
+                e.stopPropagation();
+            }
+        });
+        
+        // 双击编辑序号（在编辑模式下）
+        rect.addEventListener('dblclick', (e) => {
+            if (editMode) {
+                editOrderNumber(rect);
+                e.stopPropagation();
+            }
+        });
+        
+        // 右键删除（在编辑模式下）
+        rect.addEventListener('contextmenu', (e) => {
+            if (editMode) {
+                e.preventDefault();
+                removeMask(rect);
+            }
+        });
+        
+        // 移动端长按删除
+        let longPressTimer;
+        rect.addEventListener('touchstart', (e) => {
+            if (editMode) {
+                longPressTimer = setTimeout(() => {
+                    removeMask(rect);
+                }, 800); // 800ms长按
+            }
+        });
+        
+        rect.addEventListener('touchend', () => {
+            clearTimeout(longPressTimer);
+        });
+        
+        rect.addEventListener('touchcancel', () => {
+            clearTimeout(longPressTimer);
+        });
+        
+        // 拖拽移动遮挡（在编辑模式下）
+        rect.addEventListener('mousedown', (e) => {
+            if (editMode && e.button === 0) { // 左键点击
+                isMovingMask = true;
+                selectedMask = rect;
+                const rectBounds = rect.getBoundingClientRect();
+                offsetX = e.clientX - rectBounds.left;
+                offsetY = e.clientY - rectBounds.top;
+                e.stopPropagation(); // 阻止事件冒泡到图片容器
+            }
+        });
+        
+        // 移动端拖拽移动遮挡
+        rect.addEventListener('touchstart', (e) => {
+            if (editMode) {
+                isMovingMask = true;
+                selectedMask = rect;
+                const rectBounds = rect.getBoundingClientRect();
+                const touch = e.touches[0];
+                offsetX = touch.clientX - rectBounds.left;
+                offsetY = touch.clientY - rectBounds.top;
+                e.stopPropagation(); // 阻止事件冒泡到图片容器
+            }
+        });
+        
+        imgContainer.appendChild(rect);
+        rects.push(rect);
+        return rect;
+    }
+    
+    // 切换遮挡可见性
+    function toggleMaskVisibility(rect) {
+        const isHidden = rect.style.backgroundColor === 'rgba(0, 0, 0, 0)';
+        rect.style.backgroundColor = isHidden ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0)';
+        
+        // 同步更新序号可见性
+        const orderElement = rect.querySelector('.mask-order');
+        if (orderElement) {
+            orderElement.style.display = isHidden ? 'block' : 'none';
+        }
+    }
+    
+    // 编辑序号
+    function editOrderNumber(rect) {
+        const oldOrder = rect.order;
+        const newOrder = prompt('请输入新的序号:', oldOrder);
+        
+        if (newOrder === null || newOrder === '' || isNaN(Number(newOrder))) {
+            return; // 用户取消或输入无效
+        }
+        
+        const numOrder = Number(newOrder);
+        
+        // 查找是否有相同序号的遮挡
+        const conflictRect = rects.find(r => r.order === numOrder && r !== rect);
+        
+        if (conflictRect) {
+            // 交换两个遮挡的序号
+            conflictRect.order = oldOrder;
+            conflictRect.querySelector('.mask-order').textContent = oldOrder;
+        }
+        
+        // 更新当前遮挡的序号
+        rect.order = numOrder;
+        rect.querySelector('.mask-order').textContent = numOrder;
+        
+        // 重新排序
+        sortRectsByOrder();
+    }
+    
+    // 删除遮挡
+    function removeMask(rect) {
+        const index = rects.indexOf(rect);
+        if (index > -1) {
+            rects.splice(index, 1);
+            imgContainer.removeChild(rect);
+            
+            // 如果删除的是已揭示的遮挡，需要调整索引
+            if (index <= currentVisibleIndex) {
+                currentVisibleIndex--;
+            }
+        }
+    }
+    
+    // 创建遮挡相关事件
+    imgContainer.addEventListener('mousedown', (e) => {
+        if (editMode && e.target.tagName === 'IMG' && e.button === 0) { // 只在编辑模式下，且点击的是图片时创建
+            isDragging = true;
+            const rect = img.getBoundingClientRect();
+            const imgX = e.clientX - rect.left;
+            const imgY = e.clientY - rect.top;
+            
+            // 确保点击位置在图片内
+            if (imgX >= 0 && imgX <= img.width && imgY >= 0 && imgY <= img.height) {
+                startX = imgX;
+                startY = imgY;
+                currentRect = createRect(startX, startY, 0, 0);
+            }
+        }
+    });
+    
+    // 移动端创建遮挡
+    imgContainer.addEventListener('touchstart', (e) => {
+        if (editMode && e.target.tagName === 'IMG') {
+            const touch = e.touches[0];
+            const rect = img.getBoundingClientRect();
+            const imgX = touch.clientX - rect.left;
+            const imgY = touch.clientY - rect.top;
+            
+            // 确保点击位置在图片内
+            if (imgX >= 0 && imgX <= img.width && imgY >= 0 && imgY <= img.height) {
+                isDragging = true;
+                startX = imgX;
+                startY = imgY;
+                currentRect = createRect(startX, startY, 0, 0);
+                e.preventDefault(); // 阻止默认行为
+            }
+        }
+    });
+    
+    // 鼠标移动事件
+    document.addEventListener('mousemove', (e) => {
+        if (isDragging && currentRect) {
+            // 创建新遮挡
+            const rect = img.getBoundingClientRect();
+            const imgX = Math.max(0, Math.min(e.clientX - rect.left, img.width));
+            const imgY = Math.max(0, Math.min(e.clientY - rect.top, img.height));
+            
+            const width = imgX - startX;
+            const height = imgY - startY;
+            
+            currentRect.style.width = Math.abs(width) + 'px';
+            currentRect.style.height = Math.abs(height) + 'px';
+            currentRect.style.left = (width > 0 ? startX : imgX) + 'px';
+            currentRect.style.top = (height > 0 ? startY : imgY) + 'px';
+        } else if (isMovingMask && selectedMask) {
+            // 移动现有遮挡
+            const rect = img.getBoundingClientRect();
+            let newLeft = e.clientX - rect.left - offsetX;
+            let newTop = e.clientY - rect.top - offsetY;
+            
+            // 获取遮挡的宽度和高度
+            const width = parseFloat(selectedMask.style.width);
+            const height = parseFloat(selectedMask.style.height);
+            
+            // 确保遮挡不会移出图片边界
+            newLeft = Math.max(0, Math.min(newLeft, img.width - width));
+            newTop = Math.max(0, Math.min(newTop, img.height - height));
+            
+            selectedMask.style.left = newLeft + 'px';
+            selectedMask.style.top = newTop + 'px';
+        }
+    });
+    
+    // 移动端移动事件
+    document.addEventListener('touchmove', (e) => {
+        if (isDragging && currentRect) {
+            // 创建新遮挡
+            const touch = e.touches[0];
+            const rect = img.getBoundingClientRect();
+            const imgX = Math.max(0, Math.min(touch.clientX - rect.left, img.width));
+            const imgY = Math.max(0, Math.min(touch.clientY - rect.top, img.height));
+            
+            const width = imgX - startX;
+            const height = imgY - startY;
+            
+            currentRect.style.width = Math.abs(width) + 'px';
+            currentRect.style.height = Math.abs(height) + 'px';
+            currentRect.style.left = (width > 0 ? startX : imgX) + 'px';
+            currentRect.style.top = (height > 0 ? startY : imgY) + 'px';
+            
+            e.preventDefault(); // 阻止默认行为如滚动
+        } else if (isMovingMask && selectedMask) {
+            // 移动现有遮挡
+            const touch = e.touches[0];
+            const rect = img.getBoundingClientRect();
+            let newLeft = touch.clientX - rect.left - offsetX;
+            let newTop = touch.clientY - rect.top - offsetY;
+            
+            // 获取遮挡的宽度和高度
+            const width = parseFloat(selectedMask.style.width);
+            const height = parseFloat(selectedMask.style.height);
+            
+            // 确保遮挡不会移出图片边界
+            newLeft = Math.max(0, Math.min(newLeft, img.width - width));
+            newTop = Math.max(0, Math.min(newTop, img.height - height));
+            
+            selectedMask.style.left = newLeft + 'px';
+            selectedMask.style.top = newTop + 'px';
+            
+            e.preventDefault(); // 阻止默认行为
+        }
+    });
+    
+    // 鼠标抬起事件
+    document.addEventListener('mouseup', (e) => {
+        if (isDragging && currentRect) {
+            // 检查是否是有效的矩形（宽高都大于5像素）
+            const width = parseFloat(currentRect.style.width);
+            const height = parseFloat(currentRect.style.height);
+            
+            if (width < 5 || height < 5) {
+                // 太小的矩形视为无效，移除
+                imgContainer.removeChild(currentRect);
+                const index = rects.indexOf(currentRect);
+                if (index > -1) {
+                    rects.splice(index, 1);
+                }
+            }
+        }
+        
+        isDragging = false;
+        isMovingMask = false;
+        currentRect = null;
+        selectedMask = null;
+    });
+    
+    // 移动端松开事件
+    document.addEventListener('touchend', (e) => {
+        if (isDragging && currentRect) {
+            // 检查是否是有效的矩形（宽高都大于5像素）
+            const width = parseFloat(currentRect.style.width);
+            const height = parseFloat(currentRect.style.height);
+            
+            if (width < 5 || height < 5) {
+                // 太小的矩形视为无效，移除
+                imgContainer.removeChild(currentRect);
+                const index = rects.indexOf(currentRect);
+                if (index > -1) {
+                    rects.splice(index, 1);
+                }
+            }
+        }
+        
+        isDragging = false;
+        isMovingMask = false;
+        currentRect = null;
+        selectedMask = null;
+    });
+    
+    // 切换编辑模式
+    toggleEditBtn.addEventListener('click', () => {
+        editMode = !editMode;
+        updateEditModeUI();
+    });
+    
+    // 更新编辑模式UI
+    function updateEditModeUI() {
+        toggleEditBtn.textContent = editMode ? '关闭创建遮挡' : '开启创建遮挡';
+        toggleEditBtn.style.backgroundColor = editMode ? '#ff9999' : '';
+        
+        // 更新所有遮挡的光标样式
+        rects.forEach(rect => {
+            rect.style.cursor = editMode ? 'move' : 'pointer';
+        });
+        
+        // 更新图片容器的光标样式
+        imgContainer.style.cursor = editMode ? 'crosshair' : 'default';
+    }
+    
+    // 增强版复制功能
+    document.getElementById('copyCoords').addEventListener('click', () => {
+        // 转换为百分比坐标
+        const coords = rects.map(rect => {
+            const l = parseFloat(rect.style.left);
+            const t = parseFloat(rect.style.top);
+            const w = parseFloat(rect.style.width);
+            const h = parseFloat(rect.style.height);
+            
+            // 计算百分比值（保留两位小数）
+            const xPercent = (l / img.width * 100).toFixed(2);
+            const yPercent = (t / img.height * 100).toFixed(2);
+            const widthPercent = (w / img.width * 100).toFixed(2);
+            const heightPercent = (h / img.height * 100).toFixed(2);
+            
+            return `${xPercent},${yPercent},${widthPercent},${heightPercent},${rect.order}`;
+        }).filter(coord => !coord.includes(NaN)).join(';');
+        
+        if (!coords) {
+            alert('没有可复制的坐标');
+            return;
+        }
+        
+        const copyHandler = (text) => {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('坐标已复制到剪贴板');
+            } catch (err) {
+                alert('复制失败，请手动复制: ' + text);
+                console.log('要复制的坐标:', text); 
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        };
+        
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(coords).then(() => {
+                alert('坐标已复制到剪贴板');
+            }).catch(() => copyHandler(coords));
+        } else {
+            copyHandler(coords);
+        }
+    });
+    
+    // 揭示控制功能
+    function revealNext() {
+        sortRectsByOrder(); // 确保按正确顺序揭示
+        
+        if (currentVisibleIndex < rects.length - 1) {
+            currentVisibleIndex++;
+            const rect = rects[currentVisibleIndex];
+            rect.style.backgroundColor = 'rgba(0,0,0,0)';
+            
+            // 隐藏序号
+            const orderElement = rect.querySelector('.mask-order');
+            if (orderElement) {
+                orderElement.style.display = 'none';
+            }
+        }
+    }
+    
+    function hideLast() {
+        if (currentVisibleIndex >= 0) {
+            const rect = rects[currentVisibleIndex];
+            rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
+            
+            // 显示序号
+            const orderElement = rect.querySelector('.mask-order');
+            if (orderElement) {
+                orderElement.style.display = 'block';
+            }
+            
+            currentVisibleIndex--;
+        }
+    }
+    
+    document.getElementById('revealNext').addEventListener('click', revealNext);
+    
+    // 键盘快捷键
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'w' || e.key === 'W') revealNext();
+        if (e.key === 'q' || e.key === 'Q') hideLast();
+    });
+    
+    // 窗口大小变化时重新计算
+    window.addEventListener('resize', () => {
+        // 如果图片大小变化，需要重新调整所有遮挡的位置和大小
+        // 这在移动设备旋转或缩放时特别重要
+        
+        // 获取当前坐标（百分比形式）
+        const currentCoords = rects.map(rect => {
+            const l = parseFloat(rect.style.left) / img.width * 100;
+            const t = parseFloat(rect.style.top) / img.height * 100;
+            const w = parseFloat(rect.style.width) / img.width * 100;
+            const h = parseFloat(rect.style.height) / img.height * 100;
+            const order = rect.order;
+            
+            return {l, t, w, h, order};
+        });
+        
+        // 清除现有遮挡
+        rects.forEach(rect => {
+            imgContainer.removeChild(rect);
+        });
+        rects = [];
+        
+        // 重新创建遮挡
+        currentCoords.forEach(coord => {
+            const x = (coord.l / 100) * img.width;
+            const y = (coord.t / 100) * img.height;
+            const width = (coord.w / 100) * img.width;
+            const height = (coord.h / 100) * img.height;
+            
+            createRect(x, y, width, height, coord.order);
+        });
+        
+        // 恢复当前揭示状态
+        for (let i = 0; i <= currentVisibleIndex; i++) {
+            if (rects[i]) {
+                rects[i].style.backgroundColor = 'rgba(0,0,0,0)';
+                
+                // 隐藏序号
+                const orderElement = rects[i].querySelector('.mask-order');
+                if (orderElement) {
+                    orderElement.style.display = 'none';
+                }
+            }
+        }
+    });
+})();
+</script>
