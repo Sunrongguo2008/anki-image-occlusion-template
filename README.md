@@ -26,11 +26,13 @@
 - 借鉴~~偷走~~了[e-chehil的quizify模板](https://github.com/e-chehil/anki-quizify)
 - ~~有些冗余代码没有删干净~~
 
-## 使用方法
 ⌨️ **快捷键支持**  
 - `W`键：揭示下一个遮挡  
 - `Q`键：隐藏最新揭示的遮挡  
-
+## 使用方法
+### 获取模板
+- 从[Releases](https://github.com/Sunrongguo2008/anki-image-occlusion-template/releases)处下载Deck.apkg
+- 导入到Anki中
 
 ### 查看卡片
 1. 正常浏览时所有内容被遮挡
@@ -57,8 +59,6 @@
    - 点击"复制遮挡区域坐标"按钮  
    - 将剪贴板内容粘贴到`Opinions`字段  
    - 退出编辑模式完成制作  
-
-> 💡 提示：遮挡坐标以图片百分比存储，确保在不同设备上显示一致
 
 ## 兼容性
 - Anki Desktop (2.1.50+)  
