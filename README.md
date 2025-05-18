@@ -72,9 +72,9 @@
 - 本人编程能力有限，强烈欢迎PR为项目做贡献~~帮我~~
 - 欢迎开issue讨论
 
-##截图
-<img src="https://github.com/user-attachments/assets/ad92706a-a09c-4d5c-bbb5-127b793af87b" width="400px" />
-<img src="https://github.com/user-attachments/assets/5c47f48a-2a84-41b9-ace2-c678c8f70e5b" width="400px" />
+## 截图
+<img src="https://github.com/user-attachments/assets/ad92706a-a09c-4d5c-bbb5-127b793af87b"/>
+<img src="https://github.com/user-attachments/assets/5c47f48a-2a84-41b9-ace2-c678c8f70e5b"/>
 <img src="https://github.com/user-attachments/assets/adc6c5e5-03ce-4ec0-b199-c2015918703b" width="400px" />
 <img src="https://github.com/user-attachments/assets/eca604c4-9159-45cb-86bd-5c94e4d2c809" width="400px" />
 <img src="https://github.com/user-attachments/assets/953755f6-a208-4b61-b4e6-107c64935542" width="400px" />
