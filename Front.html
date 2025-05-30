@@ -29,7 +29,6 @@
 </div>
 {{/Note}}
 
-
 {{#Tags}}
 <div class="info-section tags-section">
     <div class="section-header">
@@ -43,7 +42,6 @@
     </div>
 </div>
 {{/Tags}}
-
 
 <script>
 (() => {
@@ -595,6 +593,10 @@
     
     // 增强版复制功能
     document.getElementById('copyCoords').addEventListener('click', () => {
+    const copyBtn = document.getElementById('copyCoords'); // 获取按钮元素    
+    // 保存原始按钮文本和类名
+    const originalText = copyBtn.textContent;
+    const originalClass = copyBtn.className;
         // 转换为百分比坐标
         const currentImgWidth = img.width || img.offsetWidth;
         const currentImgHeight = img.height || img.offsetHeight;
@@ -615,9 +617,16 @@
         }).filter(coord => !coord.includes('NaN')).join(';');
         
         if (!coords) {
-            alert('没有可复制的坐标');
-            return;
-        }
+        copyBtn.textContent = '❌复制失败';
+        copyBtn.classList.add('error');
+        
+        // 2秒后重置按钮
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.className = originalClass;
+        }, 2000);
+        return;
+    }
         
         const copyHandler = (text) => {
             const textarea = document.createElement('textarea');
@@ -628,23 +637,38 @@
             textarea.select();
             try {
                 document.execCommand('copy');
-                alert('坐标已复制到剪贴板');
-            } catch (err) {
-                alert('复制失败，请手动复制: ' + text);
-                console.log('要复制的坐标:', text); 
-            } finally {
-                document.body.removeChild(textarea);
-            }
-        };
+            copyBtn.textContent = '复制成功';
+            copyBtn.classList.add('success');
+        } catch (err) {
+            copyBtn.textContent = '❌复制失败';
+            copyBtn.classList.add('error');
+            console.log('要复制的坐标:', text); 
+        } finally {
+            document.body.removeChild(textarea);
+            
+            // 2秒后重置按钮
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.className = originalClass;
+            }, 2000);
+        }
+    };
         
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(coords).then(() => {
-                alert('坐标已复制到剪贴板');
-            }).catch(() => copyHandler(coords));
-        } else {
-            copyHandler(coords);
-        }
-    });
+            copyBtn.textContent = '复制成功';
+            copyBtn.classList.add('success');
+            
+            // 2秒后重置按钮
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.className = originalClass;
+            }, 2000);
+        }).catch(() => copyHandler(coords));
+    } else {
+        copyHandler(coords);
+    }
+});
     
     // 找出下一个要揭示的序号
     function findNextOrderToReveal() {
@@ -737,5 +761,4 @@
     });
 })();
 </script>
-
 
