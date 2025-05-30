@@ -101,7 +101,6 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     line-height: 1.6;
     color: var(--text-primary);
-    padding: 10px;
     transition: background-color 0.3s, color 0.3s;
 }
 
@@ -112,7 +111,7 @@ body {
     background: var(--card-bg);
     border-radius: 16px;
     box-shadow: 0 10px 25px var(--card-shadow);
-    border: 1px solid var(--card-border);
+    border:1px solid var(--card-border);
 }
 
 /* ================================================== 
@@ -205,6 +204,35 @@ body {
 /* ================================================== 
    控制按钮样式
    ================================================== */
+/* 在样式文件中添加以下内容 */
+
+/* 成功状态 - 浅色模式 */
+.control-btn.success {
+  background-color: #4CAF50; /* 绿色 */
+  color: white;
+}
+
+/* 成功状态 - 深色模式 */
+.nightMode .control-btn.success {
+  background-color: #2E7D32; /* 深绿色 */
+}
+
+/* 失败状态 - 浅色模式 */
+.control-btn.error {
+  background-color: #f44336; /* 红色 */
+  color: white;
+}
+
+/* 失败状态 - 深色模式 */
+.nightMode .control-btn.error {
+  background-color: #c62828; /* 深红色 */
+}
+
+/* 添加过渡效果 */
+.control-btn {
+  transition: all 0.3s ease;
+}
+
 .controls {
     margin: 30px 0;
     display: flex;
@@ -308,7 +336,6 @@ body {
     display: flex;
     align-items: center;
     margin-bottom: 15px;
-
 }
 
 .section-icon {
@@ -339,6 +366,7 @@ body {
 
 .section-content {
     font-size: 1.3em;
+	margin-left: 30px;
     line-height: 1.7;
     color: var(--text-secondary);
     padding-left: 36px; /* 图标宽度 + 间距 */
@@ -359,8 +387,6 @@ body {
 table {
 		border-collapse: collapse; /* 合并表格边框 */
 		width: 200px;
-		margin: 0 auto;
-
 }
 th, td {
 		border: 1px solid var(--text-secondary); /* 边框样式和颜色 */
