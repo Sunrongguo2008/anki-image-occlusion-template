@@ -1,6 +1,6 @@
 <!-- Front Template -->
 <div class="container">
-    <div class="deck-info">{{Deck}}</div>
+    <div class="deck-info" id="deckInfo">{{Deck}}</div>
     <div class="question">{{Question}}</div>
     
     <div class="main-image-container">
@@ -10,13 +10,13 @@
     </div>
     
     <div class="controls">
-        <button id="toggleEditMode">开启创建遮挡</button>
-        <button id="copyCoords">复制遮挡区域坐标</button>
-        <button id="revealNext">揭示下一个遮挡</button>
+        <button id="toggleEditMode" class="control-btn">开启创建遮挡</button>
+        <button id="copyCoords" class="control-btn">复制遮挡区域坐标</button>
+        <button id="revealNext" class="control-btn">揭示下一个遮挡</button>
     </div>
     
-<div class="note"><hr>{{Note}}</div>
-<div class="tags">{{Tags}}</div></div>
+    <div class="note"><hr>{{Note}}</div>
+    <div class="tags">{{Tags}}</div>
 </div>
 
 <script>
@@ -31,16 +31,33 @@
     let editMode = false;
     let selectedMask = null;
     let offsetX, offsetY;
+    let revealedOrders = new Set(); // 存储已揭示的序号
+    
+    // 图片尺寸跟踪变量
+    let lastImageWidth = 0;
+    let lastImageHeight = 0;
+    let resizeObserver = null;
     
     // 获取图片容器和图片元素
     const imgContainer = document.getElementById('mainImage');
     const img = imgContainer.querySelector('img');
     const toggleEditBtn = document.getElementById('toggleEditMode');
     
+    // 处理deck-info的"::"替换为"/"
+    function formatDeckInfo() {
+        const deckInfoElement = document.getElementById('deckInfo');
+        if (deckInfoElement) {
+            deckInfoElement.textContent = deckInfoElement.textContent.replace(/::/g, '/');
+        }
+    }
+    
+    // 页面加载时立即处理deck-info
+    formatDeckInfo();
+    
     // 确保图片加载完成后再初始化
-    if (img.complete) {
+    if (img && img.complete) {
         initializeAfterImageLoad();
-    } else {
+    } else if (img) {
         img.onload = initializeAfterImageLoad;
     }
     
@@ -54,11 +71,96 @@
         img.draggable = false;
         img.addEventListener('dragstart', (e) => e.preventDefault());
         
+        // 记录初始图片尺寸
+        lastImageWidth = img.width || img.offsetWidth;
+        lastImageHeight = img.height || img.offsetHeight;
+        
         // 从Opinions字段加载已有坐标
         loadSavedCoordinates();
         
         // 设置按钮状态
         updateEditModeUI();
+        
+        // 设置实时尺寸监听
+        setupRealTimeResizeMonitoring();
+    }
+    
+    // 设置实时尺寸监听
+    function setupRealTimeResizeMonitoring() {
+        // 使用ResizeObserver监听图片尺寸变化（现代浏览器）
+        if (window.ResizeObserver) {
+            resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    if (entry.target === img) {
+                        handleImageResize();
+                    }
+                }
+            });
+            resizeObserver.observe(img);
+        }
+        
+        // 兼容旧浏览器和AnkiDroid的定时检查
+        setInterval(() => {
+            const currentWidth = img.width || img.offsetWidth;
+            const currentHeight = img.height || img.offsetHeight;
+            
+            if (Math.abs(currentWidth - lastImageWidth) > 1 || 
+                Math.abs(currentHeight - lastImageHeight) > 1) {
+                handleImageResize();
+            }
+        }, 100); // 每100ms检查一次
+        
+        // 窗口大小变化事件（兼容性处理）
+        window.addEventListener('resize', () => {
+            setTimeout(handleImageResize, 50); // 延迟50ms确保DOM更新完成
+        });
+        
+        // 监听容器大小变化（针对AnkiDroid）
+        if (imgContainer) {
+            const containerObserver = new MutationObserver(() => {
+                setTimeout(handleImageResize, 10);
+            });
+            
+            containerObserver.observe(imgContainer, {
+                attributes: true,
+                attributeFilter: ['style'],
+                subtree: true
+            });
+        }
+    }
+    
+    // 处理图片尺寸变化
+    function handleImageResize() {
+        const currentWidth = img.width || img.offsetWidth;
+        const currentHeight = img.height || img.offsetHeight;
+        
+        // 如果尺寸没有实际变化，跳过
+        if (Math.abs(currentWidth - lastImageWidth) < 1 && 
+            Math.abs(currentHeight - lastImageHeight) < 1) {
+            return;
+        }
+        
+        // 计算缩放比例
+        const scaleX = currentWidth / lastImageWidth;
+        const scaleY = currentHeight / lastImageHeight;
+        
+        // 更新所有遮挡的位置和大小
+        rects.forEach(rect => {
+            const currentLeft = parseFloat(rect.style.left);
+            const currentTop = parseFloat(rect.style.top);
+            const currentWidth = parseFloat(rect.style.width);
+            const currentHeight = parseFloat(rect.style.height);
+            
+            // 应用缩放
+            rect.style.left = (currentLeft * scaleX) + 'px';
+            rect.style.top = (currentTop * scaleY) + 'px';
+            rect.style.width = (currentWidth * scaleX) + 'px';
+            rect.style.height = (currentHeight * scaleY) + 'px';
+        });
+        
+        // 更新记录的尺寸
+        lastImageWidth = currentWidth;
+        lastImageHeight = currentHeight;
     }
     
     // 从Opinions字段加载坐标
@@ -70,16 +172,23 @@
                     const [xPercent, yPercent, widthPercent, heightPercent, orderNum] = coord.split(',').map(Number);
                     const order = isNaN(orderNum) ? index + 1 : orderNum;
                     
-                    const x = (xPercent / 100) * img.width;
-                    const y = (yPercent / 100) * img.height;
-                    const width = (widthPercent / 100) * img.width;
-                    const height = (heightPercent / 100) * img.height;
+                    // 使用当前图片尺寸计算绝对坐标
+                    const currentImgWidth = img.width || img.offsetWidth;
+                    const currentImgHeight = img.height || img.offsetHeight;
+                    
+                    const x = (xPercent / 100) * currentImgWidth;
+                    const y = (yPercent / 100) * currentImgHeight;
+                    const width = (widthPercent / 100) * currentImgWidth;
+                    const height = (heightPercent / 100) * currentImgHeight;
                     
                     createRect(x, y, width, height, order);
                 });
                 
                 // 按顺序排序遮挡
                 sortRectsByOrder();
+                
+                // 更新已揭示的序号集合
+                updateRevealedOrdersSet();
             } catch (e) {
                 console.error('加载坐标时出错:', e);
             }
@@ -88,7 +197,33 @@
     
     // 按序号排序矩形
     function sortRectsByOrder() {
+        // 按序号从小到大排序，这保证了相同序号的遮挡会连续出现
         rects.sort((a, b) => a.order - b.order);
+    }
+    
+    // 更新已揭示序号集合
+    function updateRevealedOrdersSet() {
+        revealedOrders.clear();
+        rects.forEach(rect => {
+            if (rect.style.backgroundColor === 'rgba(0, 0, 0, 0)') {
+                revealedOrders.add(rect.order);
+            }
+        });
+    }
+    
+    // 检查是否所有遮挡都已揭示
+    function areAllMasksRevealed() {
+        return rects.every(rect => rect.style.backgroundColor === 'rgba(0, 0, 0, 0)');
+    }
+    
+    // 翻转到卡片背面
+    function flipToBack() {
+        // 在Anki中，使用pycmd触发翻转卡片
+        if (typeof pycmd === 'function') {
+            pycmd('answer');
+        } else {
+            console.log('尝试翻转卡片，但pycmd未定义');
+        }
     }
     
     // 创建矩形遮挡
@@ -109,7 +244,8 @@
             justifyContent: 'center',
             alignItems: 'center',
             cursor: editMode ? 'move' : 'pointer',
-            touchAction: 'none'
+            touchAction: 'none',
+            boxSizing: 'border-box' // 确保边框不影响尺寸计算
         });
         
         // 创建序号元素
@@ -128,7 +264,13 @@
         rect.addEventListener('click', (e) => {
             if (!editMode) {
                 toggleMaskVisibility(rect);
+                updateRevealedOrdersSet();
                 e.stopPropagation();
+                
+                // 检查是否所有遮挡都已揭示
+                if (areAllMasksRevealed()) {
+                    setTimeout(flipToBack, 500); // 延迟500ms翻转，给用户时间看到内容
+                }
             }
         });
         
@@ -208,7 +350,7 @@
         }
     }
     
-    // 编辑序号
+    // 编辑序号 - 修改为允许重复序号
     function editOrderNumber(rect) {
         const oldOrder = rect.order;
         const newOrder = prompt('请输入新的序号:', oldOrder);
@@ -219,16 +361,7 @@
         
         const numOrder = Number(newOrder);
         
-        // 查找是否有相同序号的遮挡
-        const conflictRect = rects.find(r => r.order === numOrder && r !== rect);
-        
-        if (conflictRect) {
-            // 交换两个遮挡的序号
-            conflictRect.order = oldOrder;
-            conflictRect.querySelector('.mask-order').textContent = oldOrder;
-        }
-        
-        // 更新当前遮挡的序号
+        // 直接设置序号，不再检查冲突
         rect.order = numOrder;
         rect.querySelector('.mask-order').textContent = numOrder;
         
@@ -243,27 +376,36 @@
             rects.splice(index, 1);
             imgContainer.removeChild(rect);
             
-            // 如果删除的是已揭示的遮挡，需要调整索引
-            if (index <= currentVisibleIndex) {
-                currentVisibleIndex--;
-            }
+            // 更新已揭示的序号集合
+            updateRevealedOrdersSet();
         }
+    }
+    
+    // 获取相对于图片的坐标
+    function getImageRelativeCoordinates(clientX, clientY) {
+        const imgRect = img.getBoundingClientRect();
+        const imgX = clientX - imgRect.left;
+        const imgY = clientY - imgRect.top;
+        
+        // 确保坐标在图片范围内
+        const currentImgWidth = img.width || img.offsetWidth;
+        const currentImgHeight = img.height || img.offsetHeight;
+        
+        return {
+            x: Math.max(0, Math.min(imgX, currentImgWidth)),
+            y: Math.max(0, Math.min(imgY, currentImgHeight))
+        };
     }
     
     // 创建遮挡相关事件
     imgContainer.addEventListener('mousedown', (e) => {
         if (editMode && e.target.tagName === 'IMG' && e.button === 0) { // 只在编辑模式下，且点击的是图片时创建
             isDragging = true;
-            const rect = img.getBoundingClientRect();
-            const imgX = e.clientX - rect.left;
-            const imgY = e.clientY - rect.top;
+            const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
             
-            // 确保点击位置在图片内
-            if (imgX >= 0 && imgX <= img.width && imgY >= 0 && imgY <= img.height) {
-                startX = imgX;
-                startY = imgY;
-                currentRect = createRect(startX, startY, 0, 0);
-            }
+            startX = coords.x;
+            startY = coords.y;
+            currentRect = createRect(startX, startY, 0, 0);
         }
     });
     
@@ -271,18 +413,13 @@
     imgContainer.addEventListener('touchstart', (e) => {
         if (editMode && e.target.tagName === 'IMG') {
             const touch = e.touches[0];
-            const rect = img.getBoundingClientRect();
-            const imgX = touch.clientX - rect.left;
-            const imgY = touch.clientY - rect.top;
+            const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
             
-            // 确保点击位置在图片内
-            if (imgX >= 0 && imgX <= img.width && imgY >= 0 && imgY <= img.height) {
-                isDragging = true;
-                startX = imgX;
-                startY = imgY;
-                currentRect = createRect(startX, startY, 0, 0);
-                e.preventDefault(); // 阻止默认行为
-            }
+            isDragging = true;
+            startX = coords.x;
+            startY = coords.y;
+            currentRect = createRect(startX, startY, 0, 0);
+            e.preventDefault(); // 阻止默认行为
         }
     });
     
@@ -290,9 +427,9 @@
     document.addEventListener('mousemove', (e) => {
         if (isDragging && currentRect) {
             // 创建新遮挡
-            const rect = img.getBoundingClientRect();
-            const imgX = Math.max(0, Math.min(e.clientX - rect.left, img.width));
-            const imgY = Math.max(0, Math.min(e.clientY - rect.top, img.height));
+            const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
+            const imgX = coords.x;
+            const imgY = coords.y;
             
             const width = imgX - startX;
             const height = imgY - startY;
@@ -303,17 +440,19 @@
             currentRect.style.top = (height > 0 ? startY : imgY) + 'px';
         } else if (isMovingMask && selectedMask) {
             // 移动现有遮挡
-            const rect = img.getBoundingClientRect();
-            let newLeft = e.clientX - rect.left - offsetX;
-            let newTop = e.clientY - rect.top - offsetY;
+            const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
+            let newLeft = coords.x - offsetX;
+            let newTop = coords.y - offsetY;
             
             // 获取遮挡的宽度和高度
             const width = parseFloat(selectedMask.style.width);
             const height = parseFloat(selectedMask.style.height);
+            const currentImgWidth = img.width || img.offsetWidth;
+            const currentImgHeight = img.height || img.offsetHeight;
             
             // 确保遮挡不会移出图片边界
-            newLeft = Math.max(0, Math.min(newLeft, img.width - width));
-            newTop = Math.max(0, Math.min(newTop, img.height - height));
+            newLeft = Math.max(0, Math.min(newLeft, currentImgWidth - width));
+            newTop = Math.max(0, Math.min(newTop, currentImgHeight - height));
             
             selectedMask.style.left = newLeft + 'px';
             selectedMask.style.top = newTop + 'px';
@@ -325,9 +464,9 @@
         if (isDragging && currentRect) {
             // 创建新遮挡
             const touch = e.touches[0];
-            const rect = img.getBoundingClientRect();
-            const imgX = Math.max(0, Math.min(touch.clientX - rect.left, img.width));
-            const imgY = Math.max(0, Math.min(touch.clientY - rect.top, img.height));
+            const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
+            const imgX = coords.x;
+            const imgY = coords.y;
             
             const width = imgX - startX;
             const height = imgY - startY;
@@ -341,17 +480,19 @@
         } else if (isMovingMask && selectedMask) {
             // 移动现有遮挡
             const touch = e.touches[0];
-            const rect = img.getBoundingClientRect();
-            let newLeft = touch.clientX - rect.left - offsetX;
-            let newTop = touch.clientY - rect.top - offsetY;
+            const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
+            let newLeft = coords.x - offsetX;
+            let newTop = coords.y - offsetY;
             
             // 获取遮挡的宽度和高度
             const width = parseFloat(selectedMask.style.width);
             const height = parseFloat(selectedMask.style.height);
+            const currentImgWidth = img.width || img.offsetWidth;
+            const currentImgHeight = img.height || img.offsetHeight;
             
             // 确保遮挡不会移出图片边界
-            newLeft = Math.max(0, Math.min(newLeft, img.width - width));
-            newTop = Math.max(0, Math.min(newTop, img.height - height));
+            newLeft = Math.max(0, Math.min(newLeft, currentImgWidth - width));
+            newTop = Math.max(0, Math.min(newTop, currentImgHeight - height));
             
             selectedMask.style.left = newLeft + 'px';
             selectedMask.style.top = newTop + 'px';
@@ -415,7 +556,7 @@
     // 更新编辑模式UI
     function updateEditModeUI() {
         toggleEditBtn.textContent = editMode ? '关闭创建遮挡' : '开启创建遮挡';
-        toggleEditBtn.style.backgroundColor = editMode ? '#ff9999' : '';
+        toggleEditBtn.classList.toggle('active', editMode);
         
         // 更新所有遮挡的光标样式
         rects.forEach(rect => {
@@ -429,6 +570,9 @@
     // 增强版复制功能
     document.getElementById('copyCoords').addEventListener('click', () => {
         // 转换为百分比坐标
+        const currentImgWidth = img.width || img.offsetWidth;
+        const currentImgHeight = img.height || img.offsetHeight;
+        
         const coords = rects.map(rect => {
             const l = parseFloat(rect.style.left);
             const t = parseFloat(rect.style.top);
@@ -436,13 +580,13 @@
             const h = parseFloat(rect.style.height);
             
             // 计算百分比值（保留两位小数）
-            const xPercent = (l / img.width * 100).toFixed(2);
-            const yPercent = (t / img.height * 100).toFixed(2);
-            const widthPercent = (w / img.width * 100).toFixed(2);
-            const heightPercent = (h / img.height * 100).toFixed(2);
+            const xPercent = (l / currentImgWidth * 100).toFixed(2);
+            const yPercent = (t / currentImgHeight * 100).toFixed(2);
+            const widthPercent = (w / currentImgWidth * 100).toFixed(2);
+            const heightPercent = (h / currentImgHeight * 100).toFixed(2);
             
             return `${xPercent},${yPercent},${widthPercent},${heightPercent},${rect.order}`;
-        }).filter(coord => !coord.includes(NaN)).join(';');
+        }).filter(coord => !coord.includes('NaN')).join(';');
         
         if (!coords) {
             alert('没有可复制的坐标');
@@ -453,6 +597,7 @@
             const textarea = document.createElement('textarea');
             textarea.value = text;
             textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
             document.body.appendChild(textarea);
             textarea.select();
             try {
@@ -475,35 +620,78 @@
         }
     });
     
-    // 揭示控制功能
-    function revealNext() {
-        sortRectsByOrder(); // 确保按正确顺序揭示
+    // 找出下一个要揭示的序号
+    function findNextOrderToReveal() {
+        // 按照序号从小到大顺序查找未揭示的序号
+        sortRectsByOrder();
         
-        if (currentVisibleIndex < rects.length - 1) {
-            currentVisibleIndex++;
-            const rect = rects[currentVisibleIndex];
-            rect.style.backgroundColor = 'rgba(0,0,0,0)';
+        for (let i = 0; i < rects.length; i++) {
+            const rect = rects[i];
+            if (rect.style.backgroundColor !== 'rgba(0, 0, 0, 0)' && !revealedOrders.has(rect.order)) {
+                return rect.order;
+            }
+        }
+        
+        return null; // 所有序号都已揭示
+    }
+    
+    // 揭示控制功能 - 修改为按序号批量揭示
+    function revealNext() {
+        // 找出下一个未揭示的序号
+        const nextOrder = findNextOrderToReveal();
+        
+        if (nextOrder !== null) {
+            // 揭示所有具有相同序号的遮挡
+            rects.forEach(rect => {
+                if (rect.order === nextOrder && rect.style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                    rect.style.backgroundColor = 'rgba(0,0,0,0)';
+                    
+                    // 隐藏序号
+                    const orderElement = rect.querySelector('.mask-order');
+                    if (orderElement) {
+                        orderElement.style.display = 'none';
+                    }
+                }
+            });
             
-            // 隐藏序号
-            const orderElement = rect.querySelector('.mask-order');
-            if (orderElement) {
-                orderElement.style.display = 'none';
+            // 记录已揭示的序号
+            revealedOrders.add(nextOrder);
+            
+            // 检查是否所有遮挡都已揭示
+            if (areAllMasksRevealed()) {
+                setTimeout(flipToBack, 500); // 延迟500ms翻转，给用户时间看到内容
             }
         }
     }
     
     function hideLast() {
-        if (currentVisibleIndex >= 0) {
-            const rect = rects[currentVisibleIndex];
-            rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
-            
-            // 显示序号
-            const orderElement = rect.querySelector('.mask-order');
-            if (orderElement) {
-                orderElement.style.display = 'block';
+        // 找出最大的已揭示序号
+        let lastRevealedOrder = null;
+        let maxOrder = -Infinity;
+        
+        revealedOrders.forEach(order => {
+            if (order > maxOrder) {
+                maxOrder = order;
+                lastRevealedOrder = order;
             }
+        });
+        
+        if (lastRevealedOrder !== null) {
+            // 隐藏所有具有该序号的遮挡
+            rects.forEach(rect => {
+                if (rect.order === lastRevealedOrder) {
+                    rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
+                    
+                    // 显示序号
+                    const orderElement = rect.querySelector('.mask-order');
+                    if (orderElement) {
+                        orderElement.style.display = 'block';
+                    }
+                }
+            });
             
-            currentVisibleIndex--;
+            // 从已揭示序号集合中移除
+            revealedOrders.delete(lastRevealedOrder);
         }
     }
     
@@ -515,49 +703,10 @@
         if (e.key === 'q' || e.key === 'Q') hideLast();
     });
     
-    // 窗口大小变化时重新计算
-    window.addEventListener('resize', () => {
-        // 如果图片大小变化，需要重新调整所有遮挡的位置和大小
-        // 这在移动设备旋转或缩放时特别重要
-        
-        // 获取当前坐标（百分比形式）
-        const currentCoords = rects.map(rect => {
-            const l = parseFloat(rect.style.left) / img.width * 100;
-            const t = parseFloat(rect.style.top) / img.height * 100;
-            const w = parseFloat(rect.style.width) / img.width * 100;
-            const h = parseFloat(rect.style.height) / img.height * 100;
-            const order = rect.order;
-            
-            return {l, t, w, h, order};
-        });
-        
-        // 清除现有遮挡
-        rects.forEach(rect => {
-            imgContainer.removeChild(rect);
-        });
-        rects = [];
-        
-        // 重新创建遮挡
-        currentCoords.forEach(coord => {
-            const x = (coord.l / 100) * img.width;
-            const y = (coord.t / 100) * img.height;
-            const width = (coord.w / 100) * img.width;
-            const height = (coord.h / 100) * img.height;
-            
-            createRect(x, y, width, height, coord.order);
-        });
-        
-        // 恢复当前揭示状态
-        for (let i = 0; i <= currentVisibleIndex; i++) {
-            if (rects[i]) {
-                rects[i].style.backgroundColor = 'rgba(0,0,0,0)';
-                
-                // 隐藏序号
-                const orderElement = rects[i].querySelector('.mask-order');
-                if (orderElement) {
-                    orderElement.style.display = 'none';
-                }
-            }
+    // 清理函数
+    window.addEventListener('beforeunload', () => {
+        if (resizeObserver) {
+            resizeObserver.disconnect();
         }
     });
 })();
