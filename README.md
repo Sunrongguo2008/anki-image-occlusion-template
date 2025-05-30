@@ -84,11 +84,13 @@
 - 请提交issue与我们讨论  
 - 欢迎提交pull request完善项目  
 
-## 效果预览（没写好先将就）
-桌面端使用效果 | 移动端使用效果
+## 效果预览
+桌面端正面（浅色） | 桌面端背面（浅色）
 ---|---
-<img src="https://github.com/user-attachments/assets/ad92706a-a09c-4d5c-bbb5-127b793af87b" width="400"> | <img src="https://github.com/user-attachments/assets/953755f6-a208-4b61-b4e6-107c64935542" width="200">
-桌面端编辑界面 | 移动端编辑界面
-<img src="https://github.com/user-attachments/assets/5c47f48a-2a84-41b9-ace2-c678c8f70e5b" width="400"> | <img src="https://github.com/user-attachments/assets/eca604c4-9159-45cb-86bd-5c94e4d2c809" width="200">
-顺序揭示效果 | 自定义遮挡示例
-<img src="https://github.com/user-attachments/assets/adc6c5e5-03ce-4ec0-b199-c2015918703b" width="400"> | <img src="https://github.com/user-attachments/assets/1c26fec2-3bad-4d6a-b36f-d101f63b4a7e" width="400">
+<img src="https://github.com/user-attachments/assets/7c09810c-4540-48ba-8b7a-e7114e7f7e42" width="400"> | <img src="https://github.com/user-attachments/assets/4a3a3331-49ca-411d-a19d-2213233a46c3" width="200">
+桌面端正面（深色） | 桌面端背面（深色）
+<img src="https://github.com/user-attachments/assets/15d034b4-0516-4eab-a610-5ceba060013c" width="400"> | <img src="https://github.com/user-attachments/assets/98623ecb-de1b-41a1-85a9-c75d94c099d3" width="200">
+移动端正面（浅色） | 移动端背面（浅色）
+<img src="https://github.com/user-attachments/assets/ea63478c-aae2-43cb-afc6-d31afbe3406f" width="400"> | <img src="https://github.com/user-attachments/assets/b96e8468-530e-4347-a652-69b2aeeb80b6" width="200">
+移动端正面（深色） | 移动端背面（深色）
+<img src="https://github.com/user-attachments/assets/d3481cda-dae0-4edf-b452-06bc76a505ce" width="400"> | <img src="https://github.com/user-attachments/assets/cc0859be-8c14-41f0-b4a1-bb80ab7ac403" width="200">
