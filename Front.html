@@ -15,6 +15,7 @@
         <button id="revealNext" class="control-btn">揭示下一个遮挡</button>
     </div>
     
+{{#Note}}
 <div class="info-section note-section">
     <div class="section-header">
         <svg class="section-icon" viewBox="0 0 24 24">
@@ -26,6 +27,10 @@
         {{Note}}
     </div>
 </div>
+{{/Note}}
+
+
+{{#Tags}}
 <div class="info-section tags-section">
     <div class="section-header">
         <svg class="section-icon" viewBox="0 0 24 24">
@@ -37,7 +42,8 @@
         {{Tags}}
     </div>
 </div>
-</div>
+{{/Tags}}
+
 
 <script>
 (() => {
