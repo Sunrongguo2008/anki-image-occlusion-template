@@ -27,6 +27,8 @@
     --italic-fg: #975a16;
     --bold-italic-fg: #c05621;
     --underline-fg: #2c7a7b;
+    --link-fg: #2775b6;
+    --link-fg-active: #1177b0;
 }
 
 /* 夜间模式颜色 */
@@ -55,6 +57,8 @@
     --italic-fg: #f6ad55;
     --bold-italic-fg: #f6ad55;
     --underline-fg: #81e6d9;
+    --link-fg: #5cb3cc;
+    --link-fg-active: #29b7cb;
 }
 
 /* -------------------------------------------------- 格式 */
@@ -73,6 +77,14 @@ b i, b em, strong i, strong em {
 u {
     color: var(--underline-fg);
     text-underline-offset: 0.2em;
+}
+a, a:visited {
+    text-decoration: none;
+    color: var(--link-fg);
+}
+a:hover, a:active {
+    text-decoration: underline;
+    color: var(--link-fg-active);
 }
 
 /* ================================================== 
@@ -266,38 +278,84 @@ body {
 /* ================================================== 
    底部信息样式
    ================================================== */
-.note {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid var(--divider);
-    color: var(--text-secondary);
+.info-section {
+    background: rgba(113, 128, 150, 0.05);
+    border-radius: 12px;
+    padding: 18px;
+    margin: 25px 0;
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+//		text-align: center; /* 设置文字居中 */
+}
+
+.nightMode .info-section {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.answer-section {
+    border-left-color: var(--bold-fg);
+}
+
+.note-section {
+    border-left-color: var(--italic-fg);
+}
+
+.tags-section {
+    border-left-color: var(--underline-fg);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+
+}
+
+.section-icon {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+    margin-right: 12px;
+}
+
+.answer-section .section-icon {
+    fill: var(--bold-fg);
+}
+
+.note-section .section-icon {
+    fill: var(--italic-fg);
+}
+
+.tags-section .section-icon {
+    fill: var(--underline-fg);
+}
+
+.section-title {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.section-content {
     font-size: 1.3em;
     line-height: 1.7;
-    text-align:center !important;
-}
-
-.note hr {
-    border: none;
-    border-top: 1px solid var(--divider);
-    margin: 15px 0;
-    text-align:center !important;
-}
-
-.Answer {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid var(--divider);
     color: var(--text-secondary);
-    font-size: 1.3em;
-    line-height: 1.7;
-    text-align:center;
+    padding-left: 36px; /* 图标宽度 + 间距 */
 }
 
-.Answer hr {
-    border: none;
-    border-top: 1px solid var(--divider);
-    margin: 15px 0;
+/* 标签特殊样式 */
+.tags-section .section-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
+
+.tags-section .section-content::before {
+    content: none; /* 移除之前的标签前缀 */
+}
+
+
 table {
 		border-collapse: collapse; /* 合并表格边框 */
 		width: 200px;
@@ -307,21 +365,6 @@ table {
 th, td {
 		border: 1px solid var(--text-secondary); /* 边框样式和颜色 */
 		text-align: center; /* 设置文字居中 */
-}
-.tags {
-    margin-top: 20px;
-    font-size: 0.9em;
-    color: var(--text-tertiary);
-//    font-style: italic;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.tags::before {
-    content: "标签:";
-    margin-right: 8px;
-    color: var(--text-secondary);
 }
 
 /* ================================================== 
@@ -348,6 +391,13 @@ th, td {
     
     .main-image-container {
         padding: 10px;
+    }
+	  .section-content {
+        padding-left: 0;
+    }
+    
+    .info-section {
+        padding: 15px;
     }
 }
 
@@ -419,7 +469,6 @@ th, td {
     opacity: 1;
     transform: translateY(0);
 }
-
 <script>
 // 面包屑导航处理
 document.addEventListener('DOMContentLoaded', function() {
