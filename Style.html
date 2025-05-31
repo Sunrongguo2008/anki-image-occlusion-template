@@ -1,804 +1,510 @@
-<!-- Front Template -->
-<script>
-var userJs1 = () => revealNext ()
-var userJs2 = () => hideLast ()
-</script>
-<div class="container">
-    <div class="deck-info" id="deckInfo">{{Deck}}</div>
-    <div class="question">{{Question}}</div>
-    
-    <div class="main-image-container">
-        <div class="main-image" id="mainImage" style="position: relative; display: inline-block;">
-            {{Image}}
-        </div>
-    </div>
-    
-    <div class="controls">
-        <button id="toggleEditMode" class="control-btn">开启编辑模式</button>
-        <button id="copyCoords" class="control-btn">复制遮挡坐标</button>
-        <button id="revealNext" class="control-btn">揭示下一个遮挡</button>
-    </div>
-    
-{{#Note}}
-<div class="info-section note-section">
-    <div class="section-header">
-        <svg class="section-icon" viewBox="0 0 24 24">
-            <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-        </svg>
-        <h3 class="section-title">笔记</h3>
-    </div>
-    <div class="section-content">
-        {{Note}}
-    </div>
-</div>
-{{/Note}}
+/* ================================================== 
+   基础字体和颜色变量 
+   ================================================== */
 
-{{#Tags}}
-<div class="info-section tags-section">
-    <div class="section-header">
-        <svg class="section-icon" viewBox="0 0 24 24">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h0v0h0z"/>
-        </svg>
-        <h3 class="section-title">标签</h3>
-    </div>
-    <div class="section-content">
-        {{Tags}}
-    </div>
-</div>
-{{/Tags}}
+:root {
+    /* 明亮模式颜色 */
+    --card-bg: #ffffff;
+    --card-border: #e6e9ef;
+    --card-shadow: rgba(149, 157, 165, 0.2);
+    --text-primary: #2d3748;
+    --text-secondary: #718096;
+    --text-tertiary: #a0aec0;
+    --button-bg: #f7fafc;
+    --button-border: #e2e8f0;
+    --button-hover: #edf2f7;
+    --button-active: #4299e1;
+    --button-text: #2d3748;
+    --button-active-text: #ffffff;
+    --mask-bg: rgba(0, 0, 0, 0.85);
+    --mask-border: #e53e3e;
+    --mask-text: #ffffff;
+    --image-container: #f8fafc;
+    --divider: #e2e8f0;
+    --success: #48bb78;
+    --warning: #ecc94b;
+    --error: #e53e3e;
+    --bold-fg: #2b6cb0;
+    --italic-fg: #975a16;
+    --bold-italic-fg: #c05621;
+    --underline-fg: #2c7a7b;
+    --link-fg: #2775b6;
+    --link-fg-active: #1177b0;
+}
 
-<script>
-(() => {
-    // 初始化变量
-    let isDragging = false;
-    let isMovingMask = false;
-    let startX, startY;
-    let currentRect = null;
-    let rects = [];
-    let currentVisibleIndex = -1;
-    let editMode = false;
-    let selectedMask = null;
-    let offsetX, offsetY;
-    let revealedOrders = new Set(); // 存储已揭示的序号
-    
-    // 图片尺寸跟踪变量
-    let lastImageWidth = 0;
-    let lastImageHeight = 0;
-    let resizeObserver = null;
-    
-    // 获取图片容器和图片元素
-    const imgContainer = document.getElementById('mainImage');
-    const img = imgContainer.querySelector('img');
-    const toggleEditBtn = document.getElementById('toggleEditMode');
-    
-    // 处理deck-info的"::"替换为"/"
-    function formatDeckInfo() {
-        const deckInfoElement = document.getElementById('deckInfo');
-        if (deckInfoElement) {
-            deckInfoElement.textContent = deckInfoElement.textContent.replace(/::/g, '/');
-        }
+/* 夜间模式颜色 */
+.nightMode {
+    --card-bg: #1a202c;
+    --card-border: #2d3748;
+    --card-shadow: rgba(0, 0, 0, 0.3);
+    --text-primary: #e2e8f0;
+    --text-secondary: #a0aec0;
+    --text-tertiary: #718096;
+    --button-bg: #2d3748;
+    --button-border: #4a5568;
+    --button-hover: #4a5568;
+    --button-active: #3182ce;
+    --button-text: #e2e8f0;
+    --button-active-text: #ffffff;
+    --mask-bg: rgba(0, 0, 0, 0.85);
+    --mask-border: #fc8181;
+    --mask-text: #ffffff;
+    --image-container: #1a202c;
+    --divider: #4a5568;
+    --success: #68d391;
+    --warning: #faf089;
+    --error: #fc8181;
+    --bold-fg: #63b3ed;
+    --italic-fg: #f6ad55;
+    --bold-italic-fg: #f6ad55;
+    --underline-fg: #81e6d9;
+    --link-fg: #5cb3cc;
+    --link-fg-active: #29b7cb;
+}
+
+/* -------------------------------------------------- 格式 */
+b, strong {
+    color: var(--bold-fg);
+}
+
+i, em {
+    color: var(--italic-fg);
+}
+
+b i, b em, strong i, strong em {
+    color: var(--bold-italic-fg);
+}
+
+u {
+    color: var(--underline-fg);
+    text-underline-offset: 0.2em;
+}
+a, a:visited {
+    text-decoration: none;
+    color: var(--link-fg);
+}
+a:hover, a:active {
+    text-decoration: underline;
+    color: var(--link-fg-active);
+}
+
+/* ================================================== 
+   基础布局和容器样式
+   ================================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--card-bg);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 25px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 10px 25px var(--card-shadow);
+    border:1px solid var(--card-border);
+}
+
+/* ================================================== 
+   卡片内容区域样式
+   ================================================== */
+.deck-info {
+    font-size: 0.89em;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    background: rgba(113, 128, 150, 0.05);
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.question {
+    font-size: 2.0em;
+    font-weight: 600;
+    margin: 20px 0;
+    color: var(--text-primary);
+    line-height: 1.4;
+    padding: 0 5px;
+}
+
+.main-image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 25px 0;
+    padding: 15px;
+    background: var(--image-container);
+    border-radius: 12px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.main-image {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.main-image img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    user-drag: none;
+    border-radius: 6px;
+}
+
+/* ================================================== 
+   遮挡样式
+   ================================================== */
+.mask-rect {
+    position: absolute;
+    background-color: var(--mask-bg);
+    border: 2px solid var(--mask-border);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    z-index: 10;
+}
+
+.mask-rect:hover {
+    border-color: #ff8888;
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+}
+
+.mask-order {
+    color: var(--mask-text);
+    font-size: 22px;
+    font-weight: bold;
+    pointer-events: none;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+    transition: opacity 0.2s;
+}
+
+/* ================================================== 
+   控制按钮样式
+   ================================================== */
+/* 在样式文件中添加以下内容 */
+
+/* 成功状态 - 浅色模式 */
+.control-btn.success {
+  background-color: #4CAF50; /* 绿色 */
+  color: white;
+}
+
+/* 成功状态 - 深色模式 */
+.nightMode .control-btn.success {
+  background-color: #2E7D32; /* 深绿色 */
+}
+
+/* 失败状态 - 浅色模式 */
+.control-btn.error {
+  background-color: #f44336; /* 红色 */
+  color: white;
+}
+
+/* 失败状态 - 深色模式 */
+.nightMode .control-btn.error {
+  background-color: #c62828; /* 深红色 */
+}
+
+/* 添加过渡效果 */
+.control-btn {
+  transition: all 0.3s ease;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.control-btn {
+		padding-top:10px;
+		padding-bottom:10px;
+		margin: 10px 6px;
+    background: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: 8px;
+    color: var(--button-text);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+ //   min-width: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.control-btn:hover {
+    background: var(--button-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.control-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.control-btn.active {
+    background: var(--button-active);
+    color: var(--button-active-text);
+    border-color: var(--button-active);
+    box-shadow: 0 4px 6px rgba(66, 153, 225, 0.3);
+}
+
+/* 按钮图标（使用伪元素） */
+.control-btn::before {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+#toggleEditMode::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32L19.513 8.2z'/%3E%3C/svg%3E");
+}
+
+#copyCoords::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M7.5 3.375c0-1.036.84-1.875 1.875-1.875h.375a3.75 3.75 0 013.75 3.75v1.875C13.5 8.161 14.34 9 15.375 9h1.875A3.75 3.75 0 0121 12.75v3.375C21 17.16 20.16 18 19.125 18h-9.75A1.875 1.875 0 017.5 16.125V3.375z'/%3E%3Cpath d='M15 5.25a5.23 5.23 0 00-1.279-3.434 9.768 9.768 0 016.963 6.963A5.23 5.23 0 0017.25 7.5h-1.875A.375.375 0 0115 7.125V5.25zM4.875 6H6v10.125A3.375 3.375 0 009.375 19.5H16.5v1.125c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 013 20.625V7.875C3 6.839 3.84 6 4.875 6z'/%3E%3C/svg%3E");
+}
+
+#revealNext::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z'/%3E%3C/svg%3E");
+}
+
+.nightMode .control-btn::before {
+    filter: invert(85%);
+}
+
+/* ================================================== 
+   底部信息样式
+   ================================================== */
+.info-section {
+    background: rgba(113, 128, 150, 0.05);
+    border-radius: 12px;
+    padding: 18px;
+    margin: 25px 0;
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+//		text-align: center; /* 设置文字居中 */
+}
+
+.nightMode .info-section {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.answer-section {
+    border-left-color: var(--bold-fg);
+}
+
+.note-section {
+    border-left-color: var(--italic-fg);
+}
+
+.tags-section {
+    border-left-color: var(--underline-fg);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.section-icon {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+    margin-right: 12px;
+}
+
+.answer-section .section-icon {
+    fill: var(--bold-fg);
+}
+
+.note-section .section-icon {
+    fill: var(--italic-fg);
+}
+
+.tags-section .section-icon {
+    fill: var(--underline-fg);
+}
+
+.section-title {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.section-content {
+    font-size: 1.3em;
+	margin-left: 30px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    padding-left: 36px; /* 图标宽度 + 间距 */
+}
+
+/* 标签特殊样式 */
+.tags-section .section-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tags-section .section-content::before {
+    content: none; /* 移除之前的标签前缀 */
+}
+
+
+table {
+		border-collapse: collapse; /* 合并表格边框 */
+		width: 200px;
+}
+th, td {
+		border: 1px solid var(--text-secondary); /* 边框样式和颜色 */
+		text-align: center; /* 设置文字居中 */
+}
+
+/* ================================================== 
+   响应式设计
+   ================================================== */
+@media (max-width: 525px) {
+    .container {
+        padding: 20px 15px;
     }
     
-    // 页面加载时立即处理deck-info
-    formatDeckInfo();
-    
-    // 确保图片加载完成后再初始化
-    if (img && img.complete) {
-        initializeAfterImageLoad();
-    } else if (img) {
-        img.onload = initializeAfterImageLoad;
+    .controls {
+        align-items: stretch;
     }
     
-    function initializeAfterImageLoad() {
-        // 阻止图片默认拖动行为
-        img.style.userSelect = 'none';
-        img.style.webkitUserSelect = 'none';
-        img.style.webkitTouchCallout = 'none';
-        img.style.userDrag = 'none';
-        img.style.webkitUserDrag = 'none';
-        img.draggable = false;
-        img.addEventListener('dragstart', (e) => e.preventDefault());
-        
-        // 记录初始图片尺寸
-        lastImageWidth = img.width || img.offsetWidth;
-        lastImageHeight = img.height || img.offsetHeight;
-        
-        // 从Opinions字段加载已有坐标
-        loadSavedCoordinates();
-        
-        // 设置按钮状态
-        updateEditModeUI();
-        
-        // 设置实时尺寸监听
-        setupRealTimeResizeMonitoring();
+    .control-btn {
+        width: 100%;
     }
     
-    // 设置实时尺寸监听
-    function setupRealTimeResizeMonitoring() {
-        // 使用ResizeObserver监听图片尺寸变化（现代浏览器）
-        if (window.ResizeObserver) {
-            resizeObserver = new ResizeObserver(entries => {
-                for (let entry of entries) {
-                    if (entry.target === img) {
-                        handleImageResize();
-                    }
-                }
-            });
-            resizeObserver.observe(img);
-        }
-        
-        // 兼容旧浏览器和AnkiDroid的定时检查
-        setInterval(() => {
-            const currentWidth = img.width || img.offsetWidth;
-            const currentHeight = img.height || img.offsetHeight;
-            
-            if (Math.abs(currentWidth - lastImageWidth) > 1 || 
-                Math.abs(currentHeight - lastImageHeight) > 1) {
-                handleImageResize();
-            }
-        }, 100); // 每100ms检查一次
-        
-        // 窗口大小变化事件（兼容性处理）
-        window.addEventListener('resize', () => {
-            setTimeout(handleImageResize, 50); // 延迟50ms确保DOM更新完成
-        });
-        
-        // 监听容器大小变化（针对AnkiDroid）
-        if (imgContainer) {
-            const containerObserver = new MutationObserver(() => {
-                setTimeout(handleImageResize, 10);
-            });
-            
-            containerObserver.observe(imgContainer, {
-                attributes: true,
-                attributeFilter: ['style'],
-                subtree: true
-            });
-        }
+    .question {
+        font-size: 1.3em;
     }
     
-    // 处理图片尺寸变化
-    function handleImageResize() {
-        const currentWidth = img.width || img.offsetWidth;
-        const currentHeight = img.height || img.offsetHeight;
-        
-        // 如果尺寸没有实际变化，跳过
-        if (Math.abs(currentWidth - lastImageWidth) < 1 && 
-            Math.abs(currentHeight - lastImageHeight) < 1) {
-            return;
-        }
-        
-        // 计算缩放比例
-        const scaleX = currentWidth / lastImageWidth;
-        const scaleY = currentHeight / lastImageHeight;
-        
-        // 更新所有遮挡的位置和大小
-        rects.forEach(rect => {
-            const currentLeft = parseFloat(rect.style.left);
-            const currentTop = parseFloat(rect.style.top);
-            const currentWidth = parseFloat(rect.style.width);
-            const currentHeight = parseFloat(rect.style.height);
-            
-            // 应用缩放
-            rect.style.left = (currentLeft * scaleX) + 'px';
-            rect.style.top = (currentTop * scaleY) + 'px';
-            rect.style.width = (currentWidth * scaleX) + 'px';
-            rect.style.height = (currentHeight * scaleY) + 'px';
-        });
-        
-        // 更新记录的尺寸
-        lastImageWidth = currentWidth;
-        lastImageHeight = currentHeight;
+    .main-image-container {
+        padding: 10px;
+    }
+	  .section-content {
+        padding-left: 0;
     }
     
-    // 从Opinions字段加载坐标
-    function loadSavedCoordinates() {
-        const savedCoords = '{{Opinions}}'.split(';').filter(Boolean);
-        if (savedCoords.length > 0) {
-            try {
-                savedCoords.forEach((coord, index) => {
-                    const [xPercent, yPercent, widthPercent, heightPercent, orderNum] = coord.split(',').map(Number);
-                    const order = isNaN(orderNum) ? index + 1 : orderNum;
-                    
-                    // 使用当前图片尺寸计算绝对坐标
-                    const currentImgWidth = img.width || img.offsetWidth;
-                    const currentImgHeight = img.height || img.offsetHeight;
-                    
-                    const x = (xPercent / 100) * currentImgWidth;
-                    const y = (yPercent / 100) * currentImgHeight;
-                    const width = (widthPercent / 100) * currentImgWidth;
-                    const height = (heightPercent / 100) * currentImgHeight;
-                    
-                    createRect(x, y, width, height, order);
-                });
-                
-                // 按顺序排序遮挡
-                sortRectsByOrder();
-                
-                // 更新已揭示的序号集合
-                updateRevealedOrdersSet();
-            } catch (e) {
-                console.error('加载坐标时出错:', e);
-            }
-        }
-    }
-    
-    // 按序号排序矩形
-    function sortRectsByOrder() {
-        // 按序号从小到大排序，这保证了相同序号的遮挡会连续出现
-        rects.sort((a, b) => a.order - b.order);
-    }
-    
-    // 更新已揭示序号集合
-    function updateRevealedOrdersSet() {
-        revealedOrders.clear();
-        rects.forEach(rect => {
-            if (rect.style.backgroundColor === 'rgba(0, 0, 0, 0)') {
-                revealedOrders.add(rect.order);
-            }
-        });
-    }
-    
-    // 检查是否所有遮挡都已揭示
-    function areAllMasksRevealed() {
-        return rects.every(rect => rect.style.backgroundColor === 'rgba(0, 0, 0, 0)');
-    }
-    
-// Detects where the script is being executed
-function detectAnkiPlatform() {
-    if (window.anki && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cb !== undefined) {
-        return "AnkiMobile";
-    } else if (document.querySelector("span.align-middle") && document.querySelector("span.align-middle").textContent.includes("AnkiWeb")) {
-        return "AnkiWeb";
-    } else if (typeof AnkiDroidJS !== "undefined") {
-        return "AnkiDroid";
-    } else if (typeof pycmd !== "undefined") {
-        return "AnkiDesktop";
-    } else {
-        return "Unknown";
+    .info-section {
+        padding: 15px;
     }
 }
 
-    // 翻转到卡片背面
-    function flipToBack() {
-    var platform = detectAnkiPlatform();
-    // AnkiMobile and AnkiDroid are managed by their own app settings through User Actions
-        switch (platform) {
-            case "AnkiMobile":
-                // AnkiMobile doesn't have a public JS API for show answers
-                // In app set "topCenter," "midCenter," or "bottomCenter" as tap gestures to show answers and adjust "msg" bellow accordingly
-                window.webkit.messageHandlers.cb.postMessage(JSON.stringify({scheme: "ankitap", msg: "midCenter"}));
-                break;
-            case "AnkiWeb":
-                const showAnswerButton = document.querySelector(".btn.btn-primary.btn-lg");
-                if (showAnswerButton) {
-                    showAnswerButton.click();
-                }
-                break;
-            case "AnkiDroid":
-                showAnswer();
-                break;
-            case "AnkiDesktop":
-                pycmd("ans");
-                break;
-            default:
-                console.log("Platform not recognized by flipToBack.");
-        }
+@media (max-width: 400px) {
+    .container {
+        padding: 15px 10px;
     }
     
-// 创建矩形遮挡
-function createRect(x, y, width, height, order = rects.length + 1) {
-    const rect = document.createElement('div');
-    rect.className = 'mask-rect';
-    rect.order = order;
+    .question {
+        font-size: 1.2em;
+    }
     
-    Object.assign(rect.style, {
-        position: 'absolute',
-        left: x + 'px',
-        top: y + 'px',
-        width: width + 'px',
-        height: height + 'px',
-        backgroundColor: 'rgba(0,0,0,0.9)',
-        border: '2px solid red',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        cursor: editMode ? 'move' : 'pointer',
-        touchAction: 'none',
-        boxSizing: 'border-box' // 确保边框不影响尺寸计算
-    });
-
-    // 创建序号元素
-    const orderElement = document.createElement('div');
-    orderElement.className = 'mask-order';
-    orderElement.textContent = order;
-    Object.assign(orderElement.style, {
-        color: 'white',
-        fontSize: '24px',
-        fontWeight: 'bold',
-        pointerEvents: 'none',
-        userSelect: 'none', // 禁止选中序号文字
-        webkitUserSelect: 'none', // Safari 兼容
-        mozUserSelect: 'none', // Firefox 兼容
-        msUserSelect: 'none' // IE 兼容
-    });
-    rect.appendChild(orderElement);
-
-    // 单击切换透明度
-    rect.addEventListener('click', (e) => {
-        if (!editMode) {
-            toggleMaskVisibility(rect);
-            updateRevealedOrdersSet();
-            e.stopPropagation();
-            // 检查是否所有遮挡都已揭示
-            if (areAllMasksRevealed()) {
-                //setTimeout(flipToBack, 500); // 延迟500ms翻转,给用户时间看到内容
-flipToBack()
-            }
-        }
-    });
-
-    // 双击编辑序号(在编辑模式下)
-    rect.addEventListener('dblclick', (e) => {
-        if (editMode) {
-            editOrderNumber(rect);
-            e.stopPropagation();
-        }
-    });
-
-    // 右键删除(在编辑模式下)
-    rect.addEventListener('contextmenu', (e) => {
-        if (editMode) {
-            e.preventDefault();
-            removeMask(rect);
-        }
-    });
-
-    // 移动端长按删除
-    let longPressTimer;
-    let hasMoved = false; // 添加移动标志
+    .deck-info {
+        font-size: 0.75em;
+        padding: 6px 10px;
+    }
     
-    rect.addEventListener('touchstart', (e) => {
-        if (editMode) {
-            hasMoved = false; // 重置移动标志
-            longPressTimer = setTimeout(() => {
-                if (!hasMoved) { // 只有在没有移动的情况下才删除
-                    removeMask(rect);
-                }
-            }, 800); // 800ms长按
-        }
-    });
-
-    rect.addEventListener('touchmove', (e) => {
-        hasMoved = true; // 标记已移动
-        clearTimeout(longPressTimer); // 移动时取消长按删除
-    });
-
-    rect.addEventListener('touchend', () => {
-        clearTimeout(longPressTimer);
-    });
-
-    rect.addEventListener('touchcancel', () => {
-        clearTimeout(longPressTimer);
-    });
-
-    // 拖拽移动遮挡(在编辑模式下)
-    rect.addEventListener('mousedown', (e) => {
-        if (editMode && e.button === 0) { // 左键点击
-            isMovingMask = true;
-            selectedMask = rect;
-            const rectBounds = rect.getBoundingClientRect();
-            offsetX = e.clientX - rectBounds.left;
-            offsetY = e.clientY - rectBounds.top;
-            e.stopPropagation(); // 阻止事件冒泡到图片容器
-        }
-    });
-
-    // 移动端拖拽移动遮挡
-    rect.addEventListener('touchstart', (e) => {
-        if (editMode) {
-            isMovingMask = true;
-            selectedMask = rect;
-            const rectBounds = rect.getBoundingClientRect();
-            const touch = e.touches[0];
-            offsetX = touch.clientX - rectBounds.left;
-            offsetY = touch.clientY - rectBounds.top;
-            e.stopPropagation(); // 阻止事件冒泡到图片容器
-        }
-    });
-
-    imgContainer.appendChild(rect);
-    rects.push(rect);
-    return rect;
+    .control-btn {
+        min-width: auto;
+        font-size: 14px;
+    }
 }
-    
-    // 编辑序号 - 修改为允许重复序号
-    function editOrderNumber(rect) {
-        const oldOrder = rect.order;
-        const newOrder = prompt('请输入新的序号:', oldOrder);
-        
-        if (newOrder === null || newOrder === '' || isNaN(Number(newOrder))) {
-            return; // 用户取消或输入无效
-        }
-        
-        const numOrder = Number(newOrder);
-        
-        // 直接设置序号，不再检查冲突
-        rect.order = numOrder;
-        rect.querySelector('.mask-order').textContent = numOrder;
-        
-        // 重新排序
-        sortRectsByOrder();
-    }
-    
-    // 删除遮挡
-    function removeMask(rect) {
-        const index = rects.indexOf(rect);
-        if (index > -1) {
-            rects.splice(index, 1);
-            imgContainer.removeChild(rect);
-            
-            // 更新已揭示的序号集合
-            updateRevealedOrdersSet();
-        }
-    }
-    
-    // 获取相对于图片的坐标
-    function getImageRelativeCoordinates(clientX, clientY) {
-        const imgRect = img.getBoundingClientRect();
-        const imgX = clientX - imgRect.left;
-        const imgY = clientY - imgRect.top;
-        
-        // 确保坐标在图片范围内
-        const currentImgWidth = img.width || img.offsetWidth;
-        const currentImgHeight = img.height || img.offsetHeight;
-        
-        return {
-            x: Math.max(0, Math.min(imgX, currentImgWidth)),
-            y: Math.max(0, Math.min(imgY, currentImgHeight))
-        };
-    }
-    
-    // 创建遮挡相关事件
-    imgContainer.addEventListener('mousedown', (e) => {
-        if (editMode && e.target.tagName === 'IMG' && e.button === 0) { // 只在编辑模式下，且点击的是图片时创建
-            isDragging = true;
-            const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
-            
-            startX = coords.x;
-            startY = coords.y;
-            currentRect = createRect(startX, startY, 0, 0);
-        }
-    });
-    
-    // 移动端创建遮挡
-    imgContainer.addEventListener('touchstart', (e) => {
-        if (editMode && e.target.tagName === 'IMG') {
-            const touch = e.touches[0];
-            const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
-            
-            isDragging = true;
-            startX = coords.x;
-            startY = coords.y;
-            currentRect = createRect(startX, startY, 0, 0);
-            e.preventDefault(); // 阻止默认行为
-        }
-    });
-    
-    // 鼠标移动事件
-    document.addEventListener('mousemove', (e) => {
-        if (isDragging && currentRect) {
-            // 创建新遮挡
-            const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
-            const imgX = coords.x;
-            const imgY = coords.y;
-            
-            const width = imgX - startX;
-            const height = imgY - startY;
-            
-            currentRect.style.width = Math.abs(width) + 'px';
-            currentRect.style.height = Math.abs(height) + 'px';
-            currentRect.style.left = (width > 0 ? startX : imgX) + 'px';
-            currentRect.style.top = (height > 0 ? startY : imgY) + 'px';
-        } else if (isMovingMask && selectedMask) {
-            // 移动现有遮挡
-            const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
-            let newLeft = coords.x - offsetX;
-            let newTop = coords.y - offsetY;
-            
-            // 获取遮挡的宽度和高度
-            const width = parseFloat(selectedMask.style.width);
-            const height = parseFloat(selectedMask.style.height);
-            const currentImgWidth = img.width || img.offsetWidth;
-            const currentImgHeight = img.height || img.offsetHeight;
-            
-            // 确保遮挡不会移出图片边界
-            newLeft = Math.max(0, Math.min(newLeft, currentImgWidth - width));
-            newTop = Math.max(0, Math.min(newTop, currentImgHeight - height));
-            
-            selectedMask.style.left = newLeft + 'px';
-            selectedMask.style.top = newTop + 'px';
-        }
-    });
-    
-    // 移动端移动事件
-    document.addEventListener('touchmove', (e) => {
-        if (isDragging && currentRect) {
-            // 创建新遮挡
-            const touch = e.touches[0];
-            const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
-            const imgX = coords.x;
-            const imgY = coords.y;
-            
-            const width = imgX - startX;
-            const height = imgY - startY;
-            
-            currentRect.style.width = Math.abs(width) + 'px';
-            currentRect.style.height = Math.abs(height) + 'px';
-            currentRect.style.left = (width > 0 ? startX : imgX) + 'px';
-            currentRect.style.top = (height > 0 ? startY : imgY) + 'px';
-            
-            e.preventDefault(); // 阻止默认行为如滚动
-        } else if (isMovingMask && selectedMask) {
-            // 移动现有遮挡
-            const touch = e.touches[0];
-            const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
-            let newLeft = coords.x - offsetX;
-            let newTop = coords.y - offsetY;
-            
-            // 获取遮挡的宽度和高度
-            const width = parseFloat(selectedMask.style.width);
-            const height = parseFloat(selectedMask.style.height);
-            const currentImgWidth = img.width || img.offsetWidth;
-            const currentImgHeight = img.height || img.offsetHeight;
-            
-            // 确保遮挡不会移出图片边界
-            newLeft = Math.max(0, Math.min(newLeft, currentImgWidth - width));
-            newTop = Math.max(0, Math.min(newTop, currentImgHeight - height));
-            
-            selectedMask.style.left = newLeft + 'px';
-            selectedMask.style.top = newTop + 'px';
-            
-            e.preventDefault(); // 阻止默认行为
-        }
-    });
-    
-    // 鼠标抬起事件
-    document.addEventListener('mouseup', (e) => {
-        if (isDragging && currentRect) {
-            // 检查是否是有效的矩形（宽高都大于5像素）
-            const width = parseFloat(currentRect.style.width);
-            const height = parseFloat(currentRect.style.height);
-            
-            if (width < 5 || height < 5) {
-                // 太小的矩形视为无效，移除
-                imgContainer.removeChild(currentRect);
-                const index = rects.indexOf(currentRect);
-                if (index > -1) {
-                    rects.splice(index, 1);
-                }
-            }
-        }
-        
-        isDragging = false;
-        isMovingMask = false;
-        currentRect = null;
-        selectedMask = null;
-    });
-    
-    // 移动端松开事件
-    document.addEventListener('touchend', (e) => {
-        if (isDragging && currentRect) {
-            // 检查是否是有效的矩形（宽高都大于5像素）
-            const width = parseFloat(currentRect.style.width);
-            const height = parseFloat(currentRect.style.height);
-            
-            if (width < 5 || height < 5) {
-                // 太小的矩形视为无效，移除
-                imgContainer.removeChild(currentRect);
-                const index = rects.indexOf(currentRect);
-                if (index > -1) {
-                    rects.splice(index, 1);
-                }
-            }
-        }
-        
-        isDragging = false;
-        isMovingMask = false;
-        currentRect = null;
-        selectedMask = null;
-    });
-    
-    // 切换编辑模式
-    toggleEditBtn.addEventListener('click', () => {
-        editMode = !editMode;
-        updateEditModeUI();
-    });
-    
-    // 更新编辑模式UI
-    function updateEditModeUI() {
-        toggleEditBtn.textContent = editMode ? '关闭编辑模式' : '开启编辑模式';
-        toggleEditBtn.classList.toggle('active', editMode);
-        
-        // 更新所有遮挡的光标样式
-        rects.forEach(rect => {
-            rect.style.cursor = editMode ? 'move' : 'pointer';
+
+/* ================================================== 
+   编辑模式样式
+   ================================================== */
+.edit-mode #mainImage {
+    cursor: crosshair;
+}
+
+.edit-mode .mask-rect {
+    cursor: move;
+}
+
+/* ================================================== 
+   面包屑导航样式
+   ================================================== */
+.subdeck {
+    position: relative;
+    padding: 0 8px;
+}
+
+.subdeck:not(:last-child)::after {
+    content: "›";
+    position: absolute;
+    right: -10px;
+    color: var(--text-tertiary);
+}
+
+/* ================================================== 
+   工具提示
+   ================================================== */
+.tooltip {
+    position: fixed;
+    background: var(--button-active);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s, transform 0.3s;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+<script>
+// 面包屑导航处理
+document.addEventListener('DOMContentLoaded', function() {
+    var deckEl = document.querySelector(".deck-info");
+    if (deckEl) {
+        var subDecks = deckEl.textContent.split("::").filter(Boolean);
+        var html = [];
+        subDecks.forEach(function(subDeck, index) {
+            html.push("<span class='subdeck'>" + subDeck + "</span>");
         });
-        
-        // 更新图片容器的光标样式
-        imgContainer.style.cursor = editMode ? 'crosshair' : 'default';
-    }
-    
-    // 增强版复制功能
-    document.getElementById('copyCoords').addEventListener('click', () => {
-    const copyBtn = document.getElementById('copyCoords'); // 获取按钮元素    
-    // 保存原始按钮文本和类名
-    const originalText = copyBtn.textContent;
-    const originalClass = copyBtn.className;
-        // 转换为百分比坐标
-        const currentImgWidth = img.width || img.offsetWidth;
-        const currentImgHeight = img.height || img.offsetHeight;
-        
-        const coords = rects.map(rect => {
-            const l = parseFloat(rect.style.left);
-            const t = parseFloat(rect.style.top);
-            const w = parseFloat(rect.style.width);
-            const h = parseFloat(rect.style.height);
-            
-            // 计算百分比值（保留两位小数）
-            const xPercent = (l / currentImgWidth * 100).toFixed(2);
-            const yPercent = (t / currentImgHeight * 100).toFixed(2);
-            const widthPercent = (w / currentImgWidth * 100).toFixed(2);
-            const heightPercent = (h / currentImgHeight * 100).toFixed(2);
-            
-            return `${xPercent},${yPercent},${widthPercent},${heightPercent},${rect.order}`;
-        }).filter(coord => !coord.includes('NaN')).join(';');
-        
-        if (!coords) {
-        copyBtn.textContent = '❌复制失败';
-        copyBtn.classList.add('error');
-        
-        // 2秒后重置按钮
-        setTimeout(() => {
-            copyBtn.textContent = originalText;
-            copyBtn.className = originalClass;
-        }, 2000);
-        return;
-    }
-        
-        const copyHandler = (text) => {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-            copyBtn.textContent = '复制成功';
-            copyBtn.classList.add('success');
-        } catch (err) {
-            copyBtn.textContent = '❌复制失败';
-            copyBtn.classList.add('error');
-            console.log('要复制的坐标:', text); 
-        } finally {
-            document.body.removeChild(textarea);
-            
-            // 2秒后重置按钮
-            setTimeout(() => {
-                copyBtn.textContent = originalText;
-                copyBtn.className = originalClass;
-            }, 2000);
-        }
-    };
-        
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(coords).then(() => {
-            copyBtn.textContent = '复制成功';
-            copyBtn.classList.add('success');
-            
-            // 2秒后重置按钮
-            setTimeout(() => {
-                copyBtn.textContent = originalText;
-                copyBtn.className = originalClass;
-            }, 2000);
-        }).catch(() => copyHandler(coords));
-    } else {
-        copyHandler(coords);
+        deckEl.innerHTML = html.join("");
     }
 });
-    
-    // 找出下一个要揭示的序号
-    function findNextOrderToReveal() {
-        // 按照序号从小到大顺序查找未揭示的序号
-        sortRectsByOrder();
-        
-        for (let i = 0; i < rects.length; i++) {
-            const rect = rects[i];
-            if (rect.style.backgroundColor !== 'rgba(0, 0, 0, 0)' && !revealedOrders.has(rect.order)) {
-                return rect.order;
-            }
-        }
-        
-        return null; // 所有序号都已揭示
-    }
-    
-    // 揭示控制功能 - 修改为按序号批量揭示
-    function revealNext() {
-        // 找出下一个未揭示的序号
-        const nextOrder = findNextOrderToReveal();
-        
-        if (nextOrder !== null) {
-            // 揭示所有具有相同序号的遮挡
-            rects.forEach(rect => {
-                if (rect.order === nextOrder && rect.style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-                    rect.style.backgroundColor = 'rgba(0,0,0,0)';
-                    
-                    // 隐藏序号
-                    const orderElement = rect.querySelector('.mask-order');
-                    if (orderElement) {
-                        orderElement.style.display = 'none';
-                    }
-                }
-            });
-            
-            // 记录已揭示的序号
-            revealedOrders.add(nextOrder);
-            
-            // 检查是否所有遮挡都已揭示
-            if (areAllMasksRevealed()) {
-                //setTimeout(flipToBack, 500); // 延迟500ms翻转，给用户时间看到内容
-flipToBack()
-            }
-        }
-    }
-	 globalThis ["userJs1"] = () => revealNext()
-    document.getElementById('revealNext').addEventListener('click', revealNext);
-
-    function hideLast() {
-        // 找出最大的已揭示序号
-        let lastRevealedOrder = null;
-        let maxOrder = -Infinity;
-        
-        revealedOrders.forEach(order => {
-            if (order > maxOrder) {
-                maxOrder = order;
-                lastRevealedOrder = order;
-            }
-        });
-        
-        if (lastRevealedOrder !== null) {
-            // 隐藏所有具有该序号的遮挡
-            rects.forEach(rect => {
-                if (rect.order === lastRevealedOrder) {
-                    rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
-                    
-                    // 显示序号
-                    const orderElement = rect.querySelector('.mask-order');
-                    if (orderElement) {
-                        orderElement.style.display = 'block';
-                    }
-                }
-            });
-            
-            // 从已揭示序号集合中移除
-            revealedOrders.delete(lastRevealedOrder);
-        }
-    }
-	 globalThis ["userJs2"] = () => hideLast()
-    
-    // 键盘快捷键
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'w' || e.key === 'W') revealNext();
-        if (e.key === 'q' || e.key === 'Q') hideLast();
-    });
-    
-    // 清理函数
-    window.addEventListener('beforeunload', () => {
-        if (resizeObserver) {
-            resizeObserver.disconnect();
-        }
-    });
-})();
-
 </script>
