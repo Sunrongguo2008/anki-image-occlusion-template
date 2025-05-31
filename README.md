@@ -87,10 +87,10 @@
 ## 效果预览
 桌面端正面（浅色） | 桌面端背面（浅色）
 ---|---
-<img src="https://github.com/user-attachments/assets/7c09810c-4540-48ba-8b7a-e7114e7f7e42" width="400"> | <img src="https://github.com/user-attachments/assets/4a3a3331-49ca-411d-a19d-2213233a46c3" width="200">
+<img src="https://github.com/user-attachments/assets/7c09810c-4540-48ba-8b7a-e7114e7f7e42" > | <img src="https://github.com/user-attachments/assets/4a3a3331-49ca-411d-a19d-2213233a46c3" >
 桌面端正面（深色） | 桌面端背面（深色）
-<img src="https://github.com/user-attachments/assets/15d034b4-0516-4eab-a610-5ceba060013c" width="400"> | <img src="https://github.com/user-attachments/assets/98623ecb-de1b-41a1-85a9-c75d94c099d3" width="200">
+<img src="https://github.com/user-attachments/assets/15d034b4-0516-4eab-a610-5ceba060013c" > | <img src="https://github.com/user-attachments/assets/98623ecb-de1b-41a1-85a9-c75d94c099d3" >
 移动端正面（浅色） | 移动端背面（浅色）
-<img src="https://github.com/user-attachments/assets/ea63478c-aae2-43cb-afc6-d31afbe3406f" width="400"> | <img src="https://github.com/user-attachments/assets/b96e8468-530e-4347-a652-69b2aeeb80b6" width="200">
+<img src="https://github.com/user-attachments/assets/ea63478c-aae2-43cb-afc6-d31afbe3406f" > | <img src="https://github.com/user-attachments/assets/b96e8468-530e-4347-a652-69b2aeeb80b6" >
 移动端正面（深色） | 移动端背面（深色）
-<img src="https://github.com/user-attachments/assets/d3481cda-dae0-4edf-b452-06bc76a505ce" width="400"> | <img src="https://github.com/user-attachments/assets/cc0859be-8c14-41f0-b4a1-bb80ab7ac403" width="200">
+<img src="https://github.com/user-attachments/assets/d3481cda-dae0-4edf-b452-06bc76a505ce" > | <img src="https://github.com/user-attachments/assets/cc0859be-8c14-41f0-b4a1-bb80ab7ac403" >
