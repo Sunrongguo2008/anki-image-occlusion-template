@@ -1,4 +1,8 @@
 <!-- Front Template -->
+<script>
+var userJs1 = () => revealNext ()
+var userJs2 = () => hideLast ()
+</script>
 <div class="container">
     <div class="deck-info" id="deckInfo">{{Deck}}</div>
     <div class="question">{{Question}}</div>
@@ -10,8 +14,8 @@
     </div>
     
     <div class="controls">
-        <button id="toggleEditMode" class="control-btn">开启创建遮挡</button>
-        <button id="copyCoords" class="control-btn">复制遮挡区域坐标</button>
+        <button id="toggleEditMode" class="control-btn">开启编辑模式</button>
+        <button id="copyCoords" class="control-btn">复制遮挡坐标</button>
         <button id="revealNext" class="control-btn">揭示下一个遮挡</button>
     </div>
     
@@ -240,139 +244,173 @@
         return rects.every(rect => rect.style.backgroundColor === 'rgba(0, 0, 0, 0)');
     }
     
+// Detects where the script is being executed
+function detectAnkiPlatform() {
+    if (window.anki && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cb !== undefined) {
+        return "AnkiMobile";
+    } else if (document.querySelector("span.align-middle") && document.querySelector("span.align-middle").textContent.includes("AnkiWeb")) {
+        return "AnkiWeb";
+    } else if (typeof AnkiDroidJS !== "undefined") {
+        return "AnkiDroid";
+    } else if (typeof pycmd !== "undefined") {
+        return "AnkiDesktop";
+    } else {
+        return "Unknown";
+    }
+}
+
     // 翻转到卡片背面
     function flipToBack() {
-        // 在Anki中，使用pycmd触发翻转卡片
-        if (typeof pycmd === 'function') {
-            pycmd('answer');
-        } else {
-            console.log('尝试翻转卡片，但pycmd未定义');
-        }
-    }
-    
-    // 创建矩形遮挡
-    function createRect(x, y, width, height, order = rects.length + 1) {
-        const rect = document.createElement('div');
-        rect.className = 'mask-rect';
-        rect.order = order;
-        
-        Object.assign(rect.style, {
-            position: 'absolute',
-            left: x + 'px',
-            top: y + 'px',
-            width: width + 'px',
-            height: height + 'px',
-            backgroundColor: 'rgba(0,0,0,0.9)',
-            border: '2px solid red',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            cursor: editMode ? 'move' : 'pointer',
-            touchAction: 'none',
-            boxSizing: 'border-box' // 确保边框不影响尺寸计算
-        });
-        
-        // 创建序号元素
-        const orderElement = document.createElement('div');
-        orderElement.className = 'mask-order';
-        orderElement.textContent = order;
-        Object.assign(orderElement.style, {
-            color: 'white',
-            fontSize: '24px',
-            fontWeight: 'bold',
-            pointerEvents: 'none'
-        });
-        rect.appendChild(orderElement);
-        
-        // 单击切换透明度
-        rect.addEventListener('click', (e) => {
-            if (!editMode) {
-                toggleMaskVisibility(rect);
-                updateRevealedOrdersSet();
-                e.stopPropagation();
-                
-                // 检查是否所有遮挡都已揭示
-                if (areAllMasksRevealed()) {
-                    setTimeout(flipToBack, 500); // 延迟500ms翻转，给用户时间看到内容
+    var platform = detectAnkiPlatform();
+    // AnkiMobile and AnkiDroid are managed by their own app settings through User Actions
+        switch (platform) {
+            case "AnkiMobile":
+                // AnkiMobile doesn't have a public JS API for show answers
+                // In app set "topCenter," "midCenter," or "bottomCenter" as tap gestures to show answers and adjust "msg" bellow accordingly
+                window.webkit.messageHandlers.cb.postMessage(JSON.stringify({scheme: "ankitap", msg: "midCenter"}));
+                break;
+            case "AnkiWeb":
+                const showAnswerButton = document.querySelector(".btn.btn-primary.btn-lg");
+                if (showAnswerButton) {
+                    showAnswerButton.click();
                 }
-            }
-        });
-        
-        // 双击编辑序号（在编辑模式下）
-        rect.addEventListener('dblclick', (e) => {
-            if (editMode) {
-                editOrderNumber(rect);
-                e.stopPropagation();
-            }
-        });
-        
-        // 右键删除（在编辑模式下）
-        rect.addEventListener('contextmenu', (e) => {
-            if (editMode) {
-                e.preventDefault();
-                removeMask(rect);
-            }
-        });
-        
-        // 移动端长按删除
-        let longPressTimer;
-        rect.addEventListener('touchstart', (e) => {
-            if (editMode) {
-                longPressTimer = setTimeout(() => {
-                    removeMask(rect);
-                }, 800); // 800ms长按
-            }
-        });
-        
-        rect.addEventListener('touchend', () => {
-            clearTimeout(longPressTimer);
-        });
-        
-        rect.addEventListener('touchcancel', () => {
-            clearTimeout(longPressTimer);
-        });
-        
-        // 拖拽移动遮挡（在编辑模式下）
-        rect.addEventListener('mousedown', (e) => {
-            if (editMode && e.button === 0) { // 左键点击
-                isMovingMask = true;
-                selectedMask = rect;
-                const rectBounds = rect.getBoundingClientRect();
-                offsetX = e.clientX - rectBounds.left;
-                offsetY = e.clientY - rectBounds.top;
-                e.stopPropagation(); // 阻止事件冒泡到图片容器
-            }
-        });
-        
-        // 移动端拖拽移动遮挡
-        rect.addEventListener('touchstart', (e) => {
-            if (editMode) {
-                isMovingMask = true;
-                selectedMask = rect;
-                const rectBounds = rect.getBoundingClientRect();
-                const touch = e.touches[0];
-                offsetX = touch.clientX - rectBounds.left;
-                offsetY = touch.clientY - rectBounds.top;
-                e.stopPropagation(); // 阻止事件冒泡到图片容器
-            }
-        });
-        
-        imgContainer.appendChild(rect);
-        rects.push(rect);
-        return rect;
-    }
-    
-    // 切换遮挡可见性
-    function toggleMaskVisibility(rect) {
-        const isHidden = rect.style.backgroundColor === 'rgba(0, 0, 0, 0)';
-        rect.style.backgroundColor = isHidden ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0)';
-        
-        // 同步更新序号可见性
-        const orderElement = rect.querySelector('.mask-order');
-        if (orderElement) {
-            orderElement.style.display = isHidden ? 'block' : 'none';
+                break;
+            case "AnkiDroid":
+                showAnswer();
+                break;
+            case "AnkiDesktop":
+                pycmd("ans");
+                break;
+            default:
+                console.log("Platform not recognized by flipToBack.");
         }
     }
+    
+// 创建矩形遮挡
+function createRect(x, y, width, height, order = rects.length + 1) {
+    const rect = document.createElement('div');
+    rect.className = 'mask-rect';
+    rect.order = order;
+    
+    Object.assign(rect.style, {
+        position: 'absolute',
+        left: x + 'px',
+        top: y + 'px',
+        width: width + 'px',
+        height: height + 'px',
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        border: '2px solid red',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        cursor: editMode ? 'move' : 'pointer',
+        touchAction: 'none',
+        boxSizing: 'border-box' // 确保边框不影响尺寸计算
+    });
+
+    // 创建序号元素
+    const orderElement = document.createElement('div');
+    orderElement.className = 'mask-order';
+    orderElement.textContent = order;
+    Object.assign(orderElement.style, {
+        color: 'white',
+        fontSize: '24px',
+        fontWeight: 'bold',
+        pointerEvents: 'none',
+        userSelect: 'none', // 禁止选中序号文字
+        webkitUserSelect: 'none', // Safari 兼容
+        mozUserSelect: 'none', // Firefox 兼容
+        msUserSelect: 'none' // IE 兼容
+    });
+    rect.appendChild(orderElement);
+
+    // 单击切换透明度
+    rect.addEventListener('click', (e) => {
+        if (!editMode) {
+            toggleMaskVisibility(rect);
+            updateRevealedOrdersSet();
+            e.stopPropagation();
+            // 检查是否所有遮挡都已揭示
+            if (areAllMasksRevealed()) {
+                //setTimeout(flipToBack, 500); // 延迟500ms翻转,给用户时间看到内容
+flipToBack()
+            }
+        }
+    });
+
+    // 双击编辑序号(在编辑模式下)
+    rect.addEventListener('dblclick', (e) => {
+        if (editMode) {
+            editOrderNumber(rect);
+            e.stopPropagation();
+        }
+    });
+
+    // 右键删除(在编辑模式下)
+    rect.addEventListener('contextmenu', (e) => {
+        if (editMode) {
+            e.preventDefault();
+            removeMask(rect);
+        }
+    });
+
+    // 移动端长按删除
+    let longPressTimer;
+    let hasMoved = false; // 添加移动标志
+    
+    rect.addEventListener('touchstart', (e) => {
+        if (editMode) {
+            hasMoved = false; // 重置移动标志
+            longPressTimer = setTimeout(() => {
+                if (!hasMoved) { // 只有在没有移动的情况下才删除
+                    removeMask(rect);
+                }
+            }, 800); // 800ms长按
+        }
+    });
+
+    rect.addEventListener('touchmove', (e) => {
+        hasMoved = true; // 标记已移动
+        clearTimeout(longPressTimer); // 移动时取消长按删除
+    });
+
+    rect.addEventListener('touchend', () => {
+        clearTimeout(longPressTimer);
+    });
+
+    rect.addEventListener('touchcancel', () => {
+        clearTimeout(longPressTimer);
+    });
+
+    // 拖拽移动遮挡(在编辑模式下)
+    rect.addEventListener('mousedown', (e) => {
+        if (editMode && e.button === 0) { // 左键点击
+            isMovingMask = true;
+            selectedMask = rect;
+            const rectBounds = rect.getBoundingClientRect();
+            offsetX = e.clientX - rectBounds.left;
+            offsetY = e.clientY - rectBounds.top;
+            e.stopPropagation(); // 阻止事件冒泡到图片容器
+        }
+    });
+
+    // 移动端拖拽移动遮挡
+    rect.addEventListener('touchstart', (e) => {
+        if (editMode) {
+            isMovingMask = true;
+            selectedMask = rect;
+            const rectBounds = rect.getBoundingClientRect();
+            const touch = e.touches[0];
+            offsetX = touch.clientX - rectBounds.left;
+            offsetY = touch.clientY - rectBounds.top;
+            e.stopPropagation(); // 阻止事件冒泡到图片容器
+        }
+    });
+
+    imgContainer.appendChild(rect);
+    rects.push(rect);
+    return rect;
+}
     
     // 编辑序号 - 修改为允许重复序号
     function editOrderNumber(rect) {
@@ -579,7 +617,7 @@
     
     // 更新编辑模式UI
     function updateEditModeUI() {
-        toggleEditBtn.textContent = editMode ? '关闭创建遮挡' : '开启创建遮挡';
+        toggleEditBtn.textContent = editMode ? '关闭编辑模式' : '开启编辑模式';
         toggleEditBtn.classList.toggle('active', editMode);
         
         // 更新所有遮挡的光标样式
@@ -709,11 +747,14 @@
             
             // 检查是否所有遮挡都已揭示
             if (areAllMasksRevealed()) {
-                setTimeout(flipToBack, 500); // 延迟500ms翻转，给用户时间看到内容
+                //setTimeout(flipToBack, 500); // 延迟500ms翻转，给用户时间看到内容
+flipToBack()
             }
         }
     }
-    
+	 globalThis ["userJs1"] = () => revealNext()
+    document.getElementById('revealNext').addEventListener('click', revealNext);
+
     function hideLast() {
         // 找出最大的已揭示序号
         let lastRevealedOrder = null;
@@ -744,8 +785,7 @@
             revealedOrders.delete(lastRevealedOrder);
         }
     }
-    
-    document.getElementById('revealNext').addEventListener('click', revealNext);
+	 globalThis ["userJs2"] = () => hideLast()
     
     // 键盘快捷键
     document.addEventListener('keydown', (e) => {
@@ -760,5 +800,5 @@
         }
     });
 })();
-</script>
 
+</script>
