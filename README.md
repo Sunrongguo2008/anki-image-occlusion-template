@@ -35,7 +35,7 @@
 - 简洁现代的UI界面  
 - 清晰的遮挡层标识  
 - 响应式布局适配各种设备  
-- 借鉴优化了[e-chehil的quizify模板](https://github.com/e-chehil/anki-quizify)的优秀设计  
+- ~~借鉴优化了[e-chehil的quizify模板](https://github.com/e-chehil/anki-quizify)的优秀设计~~ 感谢e-chehil曾帮助过这个项目，**已用DeepSeek重构样式**
 
 ## 使用方法
 
@@ -98,6 +98,6 @@
 
 ## 其他模板推荐
 
-**ikkz/anki-template: https://github.com/ikkz/anki-template**
+**ikkz/anki-template（Cloze填空题、手动输入答案的填空题、简答题、判断题、多选题、匹配题，全量支持Markdown）: https://github.com/ikkz/anki-template**
 
-e-chehil/anki-quizify: https://github.com/e-chehil/anki-quizify
+**e-chehil/anki-quizify（Cloze填空题，样式十分美观，带有备注功能）: https://github.com/e-chehil/anki-quizify**
