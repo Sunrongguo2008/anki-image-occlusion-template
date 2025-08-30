@@ -94,3 +94,10 @@
 <img src="https://github.com/user-attachments/assets/ea63478c-aae2-43cb-afc6-d31afbe3406f" > | <img src="https://github.com/user-attachments/assets/b96e8468-530e-4347-a652-69b2aeeb80b6" >
 移动端正面（深色） | 移动端背面（深色）
 <img src="https://github.com/user-attachments/assets/d3481cda-dae0-4edf-b452-06bc76a505ce" > | <img src="https://github.com/user-attachments/assets/cc0859be-8c14-41f0-b4a1-bb80ab7ac403" >
+
+
+## 其他模板推荐
+
+**ikkz/anki-template: https://github.com/ikkz/anki-template**
+
+e-chehil/anki-quizify: https://github.com/e-chehil/anki-quizify
