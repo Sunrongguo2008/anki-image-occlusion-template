@@ -1,0 +1,1390 @@
+<!-- Front Template -->
+<script>
+    var userJs1 = () => revealNext()
+    var userJs2 = () => hideLast()
+</script>
+<div class="container front-static-page">
+    <div class="deck-info" id="deckInfo">{{Deck}}</div>
+    <div class="question">{{Question}}</div>
+
+    <div class="main-image-container image-viewport" id="imageViewportFront">
+        <div class="main-image" id="mainImage" style="position: relative; display: inline-block;">
+            {{Image}}
+        </div>
+        <div id="zoomControls" class="zoom-controls-fixed" aria-label="图片缩放控件">
+            <button id="zoomOutBtn" class="zoom-btn" type="button" aria-label="缩小图片">-</button>
+            <button id="zoomInBtn" class="zoom-btn" type="button" aria-label="放大图片">+</button>
+        </div>
+    </div>
+
+    <div class="controls front-controls">
+        <div class="action-controls">
+            <button id="toggleEditMode" class="control-btn">开启编辑模式</button>
+            <button id="copyCoords" class="control-btn">复制遮挡坐标</button>
+            <button id="revealNext" class="control-btn">揭示下一个遮挡</button>
+        </div>
+    </div>
+
+    {{#Tags}}
+        <div class="tags-container tags-chip-list">
+            {{Tags}}
+        </div>
+    {{/Tags}}
+
+    <!-- 坐标显示弹窗 -->
+    <div id="coordsModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h3>遮挡坐标</h3>
+            <textarea id="coordsTextarea" readonly></textarea>
+            <p class="modal-tip">请手动选择并复制上面的坐标</p>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            if (document.body) {
+                document.body.classList.remove('back-mode');
+                document.body.classList.add('front-mode');
+            }
+
+            // 立即尝试格式化标签（针对某些Anki版本）
+            try {
+                var tagsContainer = document.querySelector('.tags-container');
+                if (tagsContainer && tagsContainer.textContent.trim() && !tagsContainer.querySelector('.tag')) {
+                    var tagsText = tagsContainer.textContent.trim();
+                    var tags = tagsText.split(/\s+/).filter(function(tag) { return tag && tag.trim(); });
+                    if (tags.length > 0) {
+                        tagsContainer.innerHTML = '';
+                        tags.forEach(function(tag) {
+                            var span = document.createElement('span');
+                            span.className = 'tag';
+                            span.textContent = tag;
+                            tagsContainer.appendChild(span);
+                        });
+                    }
+                }
+            } catch (e) {
+                // 静默失败
+            }
+            
+            // 初始化变量
+            let isDragging = false;
+            let isMovingMask = false;
+            let startX, startY;
+            let currentRect = null;
+            let rects = [];
+            let currentVisibleIndex = -1;
+            let editMode = false;
+            let selectedMask = null;
+            let offsetX, offsetY;
+            let revealedOrders = new Set(); // 存储已揭示的序号
+
+            // 图片尺寸跟踪变量
+            let lastImageWidth = 0;
+            let lastImageHeight = 0;
+            let resizeObserver = null;
+            let naturalImageWidth = 0;
+            let naturalImageHeight = 0;
+            let baseFitScale = 1;
+            let userZoomFactor = 1;
+            let zoomControlsInitialized = false;
+            let hotkeysInitialized = false;
+            const ZOOM_STEP = 0.15;
+            const MIN_USER_ZOOM = 0.3;
+            const processedHotkeyEvents = new WeakSet();
+
+            // 获取图片容器和图片元素
+            const imgContainer = document.getElementById('mainImage');
+            const img = imgContainer ? imgContainer.querySelector('img') : null;
+            const toggleEditBtn = document.getElementById('toggleEditMode');
+            const cardContainer = document.querySelector('.container');
+            const deckInfoElement = document.getElementById('deckInfo');
+            const questionElement = document.querySelector('.question');
+            const mainImageContainer = document.querySelector('.main-image-container');
+            const controlsElement = document.querySelector('.controls');
+            const zoomControls = document.getElementById('zoomControls');
+            const zoomInBtn = document.getElementById('zoomInBtn');
+            const zoomOutBtn = document.getElementById('zoomOutBtn');
+            const imageViewport = document.getElementById('imageViewportFront');
+
+            let imagePanX = 0;
+            let imagePanY = 0;
+            let isMousePanningImage = false;
+            let mousePanStartX = 0;
+            let mousePanStartY = 0;
+            let mousePanOriginX = 0;
+            let mousePanOriginY = 0;
+            let isTouchPanningImage = false;
+            let touchPanStartX = 0;
+            let touchPanStartY = 0;
+            let touchPanOriginX = 0;
+            let touchPanOriginY = 0;
+            let touchPanMoved = false;
+            let isTouchPinchingImage = false;
+            let pinchStartDistance = 0;
+            let pinchStartZoom = 1;
+            let suppressMaskClick = false;
+
+            function parsePixelValue(value) {
+                const parsedValue = parseFloat(value);
+                return Number.isFinite(parsedValue) ? parsedValue : 0;
+            }
+
+            function clamp(value, minValue, maxValue) {
+                return Math.min(Math.max(value, minValue), maxValue);
+            }
+
+            function getOuterHeight(element) {
+                if (!element) {
+                    return 0;
+                }
+
+                const rect = element.getBoundingClientRect();
+                const styles = window.getComputedStyle(element);
+                return rect.height + parsePixelValue(styles.marginTop) + parsePixelValue(styles.marginBottom);
+            }
+
+            function getRenderedImageSize() {
+                if (!img) {
+                    return {
+                        width: 0,
+                        height: 0
+                    };
+                }
+
+                const rect = img.getBoundingClientRect();
+                const renderedWidth = rect.width || img.offsetWidth || img.width || 0;
+                const renderedHeight = rect.height || img.offsetHeight || img.height || 0;
+
+                return {
+                    width: Math.max(0, renderedWidth),
+                    height: Math.max(0, renderedHeight)
+                };
+            }
+
+            function computeBaseFitScale() {
+                if (!naturalImageWidth || !naturalImageHeight || !mainImageContainer) {
+                    return 1;
+                }
+
+                const viewportSize = getImageViewportSize();
+                const availableWidth = Math.max(40, viewportSize.width);
+                const availableHeight = Math.max(40, viewportSize.height);
+
+                const widthScale = availableWidth / naturalImageWidth;
+                const heightScale = availableHeight / naturalImageHeight;
+                const calculatedScale = Math.min(widthScale, heightScale);
+
+                if (!Number.isFinite(calculatedScale) || calculatedScale <= 0) {
+                    return 1;
+                }
+
+                return calculatedScale;
+            }
+
+            function applyImageScale() {
+                if (!img || !naturalImageWidth || !naturalImageHeight) {
+                    return;
+                }
+
+                const targetScale = Math.max(0.01, baseFitScale * userZoomFactor);
+                img.style.width = Math.max(1, naturalImageWidth * targetScale) + 'px';
+                img.style.height = Math.max(1, naturalImageHeight * targetScale) + 'px';
+            }
+
+            function setUserZoomFactor(nextFactor) {
+                userZoomFactor = Math.max(nextFactor, MIN_USER_ZOOM);
+                applyImageScale();
+                handleImageResize();
+            }
+
+            function zoomIn() {
+                setUserZoomFactor(userZoomFactor * (1 + ZOOM_STEP));
+            }
+
+            function zoomOut() {
+                setUserZoomFactor(userZoomFactor / (1 + ZOOM_STEP));
+            }
+
+            function getImageViewportSize() {
+                if (!mainImageContainer) {
+                    return {
+                        width: 0,
+                        height: 0
+                    };
+                }
+
+                const rect = mainImageContainer.getBoundingClientRect();
+                return {
+                    width: Math.max(0, mainImageContainer.clientWidth || rect.width),
+                    height: Math.max(0, mainImageContainer.clientHeight || rect.height)
+                };
+            }
+
+            function clampImagePan() {
+                if (!mainImageContainer || !imgContainer) {
+                    return;
+                }
+
+                const viewportRect = mainImageContainer.getBoundingClientRect();
+                const imageRect = imgContainer.getBoundingClientRect();
+
+                if (imageRect.width <= viewportRect.width) {
+                    imagePanX = 0;
+                } else {
+                    if (imageRect.left > viewportRect.left) {
+                        imagePanX -= (imageRect.left - viewportRect.left);
+                    }
+                    if (imageRect.right < viewportRect.right) {
+                        imagePanX += (viewportRect.right - imageRect.right);
+                    }
+                }
+
+                if (imageRect.height <= viewportRect.height) {
+                    imagePanY = 0;
+                } else {
+                    if (imageRect.top > viewportRect.top) {
+                        imagePanY -= (imageRect.top - viewportRect.top);
+                    }
+                    if (imageRect.bottom < viewportRect.bottom) {
+                        imagePanY += (viewportRect.bottom - imageRect.bottom);
+                    }
+                }
+            }
+
+            function applyImagePan() {
+                if (!imgContainer) {
+                    return;
+                }
+                imgContainer.style.transform = `translate(${imagePanX}px, ${imagePanY}px)`;
+            }
+
+            function syncImagePan() {
+                applyImagePan();
+                clampImagePan();
+                applyImagePan();
+            }
+
+            function setupImageGestureControls() {
+                if (!mainImageContainer || !imgContainer) {
+                    return;
+                }
+
+                function shouldIgnoreGestureTarget(target) {
+                    return !!(target && target.closest && target.closest('.zoom-controls-fixed'));
+                }
+
+                function finishTouchPan() {
+                    if (touchPanMoved) {
+                        suppressMaskClick = true;
+                        setTimeout(() => {
+                            suppressMaskClick = false;
+                        }, 160);
+                    }
+                    isTouchPanningImage = false;
+                    touchPanMoved = false;
+                }
+
+                mainImageContainer.addEventListener('mousedown', (e) => {
+                    if (editMode || e.button !== 0 || shouldIgnoreGestureTarget(e.target)) {
+                        return;
+                    }
+                    if (!e.target || (e.target.tagName !== 'IMG' && !e.target.closest('.main-image'))) {
+                        return;
+                    }
+
+                    isMousePanningImage = true;
+                    mousePanStartX = e.clientX;
+                    mousePanStartY = e.clientY;
+                    mousePanOriginX = imagePanX;
+                    mousePanOriginY = imagePanY;
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isMousePanningImage) {
+                        return;
+                    }
+
+                    imagePanX = mousePanOriginX + (e.clientX - mousePanStartX);
+                    imagePanY = mousePanOriginY + (e.clientY - mousePanStartY);
+                    syncImagePan();
+                });
+
+                document.addEventListener('mouseup', () => {
+                    isMousePanningImage = false;
+                });
+
+                mainImageContainer.addEventListener('touchstart', (e) => {
+                    if (editMode || shouldIgnoreGestureTarget(e.target)) {
+                        return;
+                    }
+
+                    if (e.touches.length === 2) {
+                        isTouchPinchingImage = true;
+                        isTouchPanningImage = false;
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        pinchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                        pinchStartZoom = userZoomFactor;
+                        e.preventDefault();
+                        return;
+                    }
+
+                    if (e.touches.length === 1) {
+                        isTouchPinchingImage = false;
+                        isTouchPanningImage = true;
+                        touchPanMoved = false;
+                        touchPanStartX = e.touches[0].clientX;
+                        touchPanStartY = e.touches[0].clientY;
+                        touchPanOriginX = imagePanX;
+                        touchPanOriginY = imagePanY;
+                    }
+                }, {
+                    passive: false
+                });
+
+                mainImageContainer.addEventListener('touchmove', (e) => {
+                    if (editMode || shouldIgnoreGestureTarget(e.target)) {
+                        return;
+                    }
+
+                    if (isTouchPinchingImage && e.touches.length >= 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const nextDistance = Math.sqrt(dx * dx + dy * dy);
+                        if (pinchStartDistance > 0 && nextDistance > 0) {
+                            setUserZoomFactor(pinchStartZoom * (nextDistance / pinchStartDistance));
+                            handleImageResize();
+                        }
+                        e.preventDefault();
+                        return;
+                    }
+
+                    if (isTouchPanningImage && e.touches.length === 1) {
+                        const deltaX = e.touches[0].clientX - touchPanStartX;
+                        const deltaY = e.touches[0].clientY - touchPanStartY;
+                        imagePanX = touchPanOriginX + deltaX;
+                        imagePanY = touchPanOriginY + deltaY;
+                        if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+                            touchPanMoved = true;
+                        }
+                        syncImagePan();
+                        e.preventDefault();
+                    }
+                }, {
+                    passive: false
+                });
+
+                mainImageContainer.addEventListener('touchend', (e) => {
+                    if (isTouchPinchingImage && e.touches.length < 2) {
+                        isTouchPinchingImage = false;
+                    }
+                    if (isTouchPanningImage && e.touches.length === 0) {
+                        finishTouchPan();
+                    }
+                });
+
+                mainImageContainer.addEventListener('touchcancel', () => {
+                    isTouchPinchingImage = false;
+                    finishTouchPan();
+                });
+            }
+
+            function refreshFitScaleOnViewportChange() {
+                baseFitScale = computeBaseFitScale();
+                applyImageScale();
+            }
+
+            function setupZoomControls() {
+                if (!zoomControls || !zoomInBtn || !zoomOutBtn) {
+                    return;
+                }
+
+                zoomInBtn.addEventListener('click', () => {
+                    zoomIn();
+                });
+
+                zoomOutBtn.addEventListener('click', () => {
+                    zoomOut();
+                });
+            }
+
+            function handleKeyboardShortcuts(e) {
+                if (processedHotkeyEvents.has(e)) {
+                    return;
+                }
+                processedHotkeyEvents.add(e);
+
+                if (e.key === 'w' || e.key === 'W') {
+                    revealNext();
+                }
+                if (e.key === 'q' || e.key === 'Q') {
+                    hideLast();
+                }
+
+                if (e.ctrlKey || e.metaKey || e.altKey) {
+                    return;
+                }
+
+                if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') {
+                    e.preventDefault();
+                    zoomIn();
+                }
+
+                if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
+                    e.preventDefault();
+                    zoomOut();
+                }
+            }
+
+            function setupKeyboardShortcuts() {
+                if (hotkeysInitialized) {
+                    return;
+                }
+
+                document.addEventListener('keydown', handleKeyboardShortcuts, true);
+                window.addEventListener('keydown', handleKeyboardShortcuts, true);
+                hotkeysInitialized = true;
+            }
+
+            // 处理deck-info的"::"替换为"/"
+            function formatDeckInfo() {
+                const deckInfoElement = document.getElementById('deckInfo');
+                if (deckInfoElement) {
+                    deckInfoElement.textContent = deckInfoElement.textContent.replace(/::/g, '/');
+                }
+            }
+
+            // 处理标签显示
+            function formatTags() {
+                var tagsContainer = document.querySelector('.tags-container');
+                if (tagsContainer) {
+                    // 检查是否已经格式化过
+                    if (tagsContainer.querySelector('.tag')) {
+                        return;
+                    }
+                    
+                    // 获取纯文本内容（去除可能的HTML）
+                    var tagsText = tagsContainer.textContent || tagsContainer.innerText || '';
+                    tagsText = tagsText.trim();
+                    
+                    if (tagsText) {
+                        // 按空格分割标签，过滤空值
+                        var tags = tagsText.split(/\s+/).filter(function(tag) {
+                            return tag && tag.trim();
+                        });
+                        
+                        if (tags.length > 0) {
+                            // 清空容器并添加格式化的标签
+                            tagsContainer.innerHTML = '';
+                            tags.forEach(function(tag) {
+                                var span = document.createElement('span');
+                                span.className = 'tag';
+                                span.textContent = tag;
+                                tagsContainer.appendChild(span);
+                            });
+                        }
+                    }
+                }
+            }
+
+            // 使用MutationObserver监听标签容器变化
+            function setupTagsObserver() {
+                const tagsContainer = document.querySelector('.tags-container');
+                if (tagsContainer && window.MutationObserver) {
+                    const observer = new MutationObserver((mutations) => {
+                        // 检查是否是文本内容变化
+                        const hasTextChange = mutations.some(mutation => 
+                            mutation.type === 'childList' || mutation.type === 'characterData'
+                        );
+                        if (hasTextChange && !tagsContainer.querySelector('.tag')) {
+                            formatTags();
+                        }
+                    });
+                    observer.observe(tagsContainer, {
+                        childList: true,
+                        characterData: true,
+                        subtree: true
+                    });
+                }
+            }
+
+            // 页面加载时立即处理deck-info和tags
+            formatDeckInfo();
+            formatTags();
+            setupTagsObserver();
+
+            // 确保图片加载完成后再初始化
+            if (img && img.complete) {
+                initializeAfterImageLoad();
+            } else if (img) {
+                img.onload = initializeAfterImageLoad;
+            }
+
+            function initializeAfterImageLoad() {
+                // 阻止图片默认拖动行为
+                img.style.userSelect = 'none';
+                img.style.webkitUserSelect = 'none';
+                img.style.webkitTouchCallout = 'none';
+                img.style.userDrag = 'none';
+                img.style.webkitUserDrag = 'none';
+                img.style.maxWidth = 'none';
+                img.style.maxHeight = 'none';
+                img.draggable = false;
+                img.addEventListener('dragstart', (e) => e.preventDefault());
+
+                // 初始化图片默认适配缩放
+                const initialRenderedSize = getRenderedImageSize();
+                naturalImageWidth = img.naturalWidth || initialRenderedSize.width || 1;
+                naturalImageHeight = img.naturalHeight || initialRenderedSize.height || 1;
+                baseFitScale = computeBaseFitScale();
+                userZoomFactor = 1;
+                applyImageScale();
+
+                // 记录初始图片尺寸（缩放后的实际尺寸）
+                const scaledRenderedSize = getRenderedImageSize();
+                lastImageWidth = scaledRenderedSize.width;
+                lastImageHeight = scaledRenderedSize.height;
+
+                // 从Opinions字段加载已有坐标
+                loadSavedCoordinates();
+
+                // 设置按钮状态
+                updateEditModeUI();
+
+                // 初始化缩放控件
+                if (!zoomControlsInitialized) {
+                    setupZoomControls();
+                    zoomControlsInitialized = true;
+                }
+
+                setupImageGestureControls();
+
+                setupKeyboardShortcuts();
+                if (document.body) {
+                    if (!document.body.hasAttribute('tabindex')) {
+                        document.body.tabIndex = -1;
+                    }
+                    const focusBody = () => {
+                        try {
+                            window.focus();
+                        } catch (e) {
+                            // 忽略无法主动聚焦的环境
+                        }
+                        try {
+                            document.body.focus({
+                                preventScroll: true
+                            });
+                        } catch (e) {
+                            try {
+                                document.body.focus();
+                            } catch (err) {
+                                // 某些环境禁止编程式聚焦，忽略
+                            }
+                        }
+                    };
+                    focusBody();
+                    setTimeout(focusBody, 80);
+                    setTimeout(focusBody, 220);
+                }
+
+                // 设置实时尺寸监听
+                setupRealTimeResizeMonitoring();
+                
+                // 确保标签已格式化
+                formatTags();
+            }
+
+            // 设置实时尺寸监听
+            function setupRealTimeResizeMonitoring() {
+                // 使用ResizeObserver监听图片尺寸变化（现代浏览器）
+                if (window.ResizeObserver) {
+                    resizeObserver = new ResizeObserver(entries => {
+                        for (let entry of entries) {
+                            if (entry.target === img) {
+                                handleImageResize();
+                            }
+                        }
+                    });
+                    resizeObserver.observe(img);
+                }
+
+                // 兼容旧浏览器和AnkiDroid的定时检查
+                setInterval(() => {
+                    const renderedSize = getRenderedImageSize();
+                    const currentWidth = renderedSize.width;
+                    const currentHeight = renderedSize.height;
+
+                    if (Math.abs(currentWidth - lastImageWidth) > 1 ||
+                        Math.abs(currentHeight - lastImageHeight) > 1) {
+                        handleImageResize();
+                    }
+                }, 100); // 每100ms检查一次
+
+                // 窗口大小变化事件（兼容性处理）
+                window.addEventListener('resize', () => {
+                    setTimeout(() => {
+                        refreshFitScaleOnViewportChange();
+                        handleImageResize();
+                    }, 50); // 延迟50ms确保DOM更新完成
+                });
+
+                // 监听容器大小变化（针对AnkiDroid）
+                if (imgContainer) {
+                    const containerObserver = new MutationObserver(() => {
+                        setTimeout(handleImageResize, 10);
+                    });
+
+                    containerObserver.observe(imgContainer, {
+                        attributes: true,
+                        attributeFilter: ['style'],
+                        subtree: true
+                    });
+                }
+            }
+
+            // 处理图片尺寸变化
+            function handleImageResize() {
+                const renderedSize = getRenderedImageSize();
+                const currentWidth = renderedSize.width;
+                const currentHeight = renderedSize.height;
+
+                if (currentWidth <= 0 || currentHeight <= 0) {
+                    return;
+                }
+
+                // 如果尺寸没有实际变化，跳过
+                if (Math.abs(currentWidth - lastImageWidth) < 1 &&
+                    Math.abs(currentHeight - lastImageHeight) < 1) {
+                    return;
+                }
+
+                if (lastImageWidth <= 0 || lastImageHeight <= 0) {
+                    lastImageWidth = currentWidth;
+                    lastImageHeight = currentHeight;
+                    syncImagePan();
+                    return;
+                }
+
+                // 计算缩放比例
+                const scaleX = currentWidth / lastImageWidth;
+                const scaleY = currentHeight / lastImageHeight;
+
+                // 更新所有遮挡的位置和大小
+                rects.forEach(rect => {
+                    const currentLeft = parseFloat(rect.style.left);
+                    const currentTop = parseFloat(rect.style.top);
+                    const currentWidth = parseFloat(rect.style.width);
+                    const currentHeight = parseFloat(rect.style.height);
+
+                    // 应用缩放
+                    rect.style.left = (currentLeft * scaleX) + 'px';
+                    rect.style.top = (currentTop * scaleY) + 'px';
+                    rect.style.width = (currentWidth * scaleX) + 'px';
+                    rect.style.height = (currentHeight * scaleY) + 'px';
+                });
+
+                // 更新记录的尺寸
+                lastImageWidth = currentWidth;
+                lastImageHeight = currentHeight;
+                syncImagePan();
+            }
+
+            // 更新下一个待揭示遮挡的高亮
+            function updateNextToRevealHighlight() {
+                // 移除所有高亮
+                rects.forEach(rect => {
+                    rect.classList.remove('next-to-reveal');
+                });
+                
+                // 找出下一个待揭示的序号
+                const nextOrder = findNextOrderToReveal();
+                
+                if (nextOrder !== null) {
+                    // 高亮所有具有该序号的遮挡
+                    rects.forEach(rect => {
+                        if (rect.order === nextOrder && rect.style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                            rect.classList.add('next-to-reveal');
+                        }
+                    });
+                }
+            }
+
+            // 从Opinions字段加载坐标
+            function loadSavedCoordinates() {
+                const savedCoords = '{{Opinions}}'.split(';').filter(Boolean);
+                if (savedCoords.length > 0) {
+                    try {
+                        savedCoords.forEach((coord, index) => {
+                            const [xPercent, yPercent, widthPercent, heightPercent, orderNum] = coord.split(',').map(Number);
+                            const order = isNaN(orderNum) ? index + 1 : orderNum;
+
+                            // 使用当前图片尺寸计算绝对坐标
+                            const renderedSize = getRenderedImageSize();
+                            const currentImgWidth = renderedSize.width;
+                            const currentImgHeight = renderedSize.height;
+
+                            const x = (xPercent / 100) * currentImgWidth;
+                            const y = (yPercent / 100) * currentImgHeight;
+                            const width = (widthPercent / 100) * currentImgWidth;
+                            const height = (heightPercent / 100) * currentImgHeight;
+
+                            createRect(x, y, width, height, order);
+                        });
+
+                        // 按顺序排序遮挡
+                        sortRectsByOrder();
+
+                        // 更新已揭示的序号集合
+                        updateRevealedOrdersSet();
+                        
+                        // 初始化高亮
+                        updateNextToRevealHighlight();
+                    } catch (e) {
+                        console.error('加载坐标时出错:', e);
+                    }
+                }
+            }
+
+            // 按序号排序矩形
+            function sortRectsByOrder() {
+                // 按序号从小到大排序，这保证了相同序号的遮挡会连续出现
+                rects.sort((a, b) => a.order - b.order);
+            }
+
+            // 更新已揭示序号集合
+            function updateRevealedOrdersSet() {
+                revealedOrders.clear();
+                rects.forEach(rect => {
+                    if (rect.style.backgroundColor === 'rgba(0, 0, 0, 0)') {
+                        revealedOrders.add(rect.order);
+                    }
+                });
+            }
+
+            // 检查是否所有遮挡都已揭示
+            function areAllMasksRevealed() {
+                return rects.every(rect => rect.style.backgroundColor === 'rgba(0, 0, 0, 0)');
+            }
+
+            // 找出最小的未使用序号
+            function getNextAvailableOrder() {
+                const usedOrders = new Set(rects.map(rect => rect.order));
+                let order = 1;
+                while (usedOrders.has(order)) {
+                    order++;
+                }
+                return order;
+            }
+
+            // Detects where the script is being executed
+            function detectAnkiPlatform() {
+                if (window.anki && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cb !== undefined) {
+                    return "AnkiMobile";
+                } else if (document.querySelector("span.align-middle") && document.querySelector("span.align-middle").textContent.includes("AnkiWeb")) {
+                    return "AnkiWeb";
+                } else if (typeof AnkiDroidJS !== "undefined") {
+                    return "AnkiDroid";
+                } else if (typeof pycmd !== "undefined") {
+                    return "AnkiDesktop";
+                } else {
+                    return "Unknown";
+                }
+            }
+
+            // 翻转到卡片背面
+            function flipToBack() {
+                var platform = detectAnkiPlatform();
+                // AnkiMobile and AnkiDroid are managed by their own app settings through User Actions
+                switch (platform) {
+                    case "AnkiMobile":
+                        // AnkiMobile doesn't have a public JS API for show answers
+                        // In app set "topCenter," "midCenter," or "bottomCenter" as tap gestures to show answers and adjust "msg" bellow accordingly
+                        window.webkit.messageHandlers.cb.postMessage(JSON.stringify({
+                            scheme: "ankitap",
+                            msg: "midCenter"
+                        }));
+                        break;
+                    case "AnkiWeb":
+                        const showAnswerButton = document.querySelector(".btn.btn-primary.btn-lg");
+                        if (showAnswerButton) {
+                            showAnswerButton.click();
+                        }
+                        break;
+                    case "AnkiDroid":
+                        showAnswer();
+                        break;
+                    case "AnkiDesktop":
+                        pycmd("ans");
+                        break;
+                    default:
+                        console.log("Platform not recognized by flipToBack.");
+                }
+            }
+
+            // 创建矩形遮挡
+            function createRect(x, y, width, height, order = null) {
+                if (order === null) {
+                    order = getNextAvailableOrder();
+                }
+                
+                const rect = document.createElement('div');
+                rect.className = 'mask-rect';
+                rect.order = order;
+
+                Object.assign(rect.style, {
+                    position: 'absolute',
+                    left: x + 'px',
+                    top: y + 'px',
+                    width: width + 'px',
+                    height: height + 'px',
+                    backgroundColor: 'rgba(0,0,0,0.9)',
+                    border: '2px solid red',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    cursor: editMode ? 'move' : 'pointer',
+                    touchAction: 'none',
+                    boxSizing: 'border-box' // 确保边框不影响尺寸计算
+                });
+
+                // 创建序号元素
+                const orderElement = document.createElement('div');
+                orderElement.className = 'mask-order';
+                orderElement.textContent = order;
+                Object.assign(orderElement.style, {
+                    color: 'white',
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    pointerEvents: 'none',
+                    userSelect: 'none', // 禁止选中序号文字
+                    webkitUserSelect: 'none', // Safari 兼容
+                    mozUserSelect: 'none', // Firefox 兼容
+                    msUserSelect: 'none' // IE 兼容
+                });
+                rect.appendChild(orderElement);
+
+                // 切换遮挡可见性
+                function toggleMaskVisibility(rect) {
+                    if (rect.style.backgroundColor === 'rgba(0, 0, 0, 0)') {
+                        // 当前是透明的，变为不透明
+                        rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
+                        rect.style.borderColor = 'red'; // 显示边框
+                        const orderElement = rect.querySelector('.mask-order');
+                        if (orderElement) {
+                            orderElement.style.display = 'block';
+                        }
+                        revealedOrders.delete(rect.order);
+                    } else {
+                        // 当前是不透明的，变为透明
+                        rect.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+                        rect.style.borderColor = 'transparent'; // 隐藏边框
+                        const orderElement = rect.querySelector('.mask-order');
+                        if (orderElement) {
+                            orderElement.style.display = 'none';
+                        }
+                        revealedOrders.add(rect.order);
+                    }
+                    // 更新高亮
+                    updateNextToRevealHighlight();
+                }
+
+                // 单击切换透明度
+                rect.addEventListener('click', (e) => {
+                    if (suppressMaskClick) {
+                        e.stopPropagation();
+                        return;
+                    }
+                    if (!editMode) {
+                        toggleMaskVisibility(rect);
+                        e.stopPropagation();
+                        // 检查是否所有遮挡都已揭示
+                        if (areAllMasksRevealed()) {
+                            //setTimeout(flipToBack, 500); // 延迟500ms翻转,给用户时间看到内容
+                            flipToBack()
+                        }
+                    }
+                });
+
+                // 双击编辑序号(在编辑模式下)
+                rect.addEventListener('dblclick', (e) => {
+                    if (editMode) {
+                        editOrderNumber(rect);
+                        e.stopPropagation();
+                    }
+                });
+
+                // 右键删除(在编辑模式下)
+                rect.addEventListener('contextmenu', (e) => {
+                    if (editMode) {
+                        e.preventDefault();
+                        removeMask(rect);
+                    }
+                });
+
+                // 移动端长按删除
+                let longPressTimer;
+                let hasMoved = false; // 添加移动标志
+
+                rect.addEventListener('touchstart', (e) => {
+                    if (editMode) {
+                        hasMoved = false; // 重置移动标志
+                        longPressTimer = setTimeout(() => {
+                            if (!hasMoved) { // 只有在没有移动的情况下才删除
+                                removeMask(rect);
+                            }
+                        }, 800); // 800ms长按
+                    }
+                });
+
+                rect.addEventListener('touchmove', (e) => {
+                    hasMoved = true; // 标记已移动
+                    clearTimeout(longPressTimer); // 移动时取消长按删除
+                });
+
+                rect.addEventListener('touchend', () => {
+                    clearTimeout(longPressTimer);
+                });
+
+                rect.addEventListener('touchcancel', () => {
+                    clearTimeout(longPressTimer);
+                });
+
+                // 拖拽移动遮挡(在编辑模式下)
+                rect.addEventListener('mousedown', (e) => {
+                    if (editMode && e.button === 0) { // 左键点击
+                        isMovingMask = true;
+                        selectedMask = rect;
+                        const rectBounds = rect.getBoundingClientRect();
+                        offsetX = e.clientX - rectBounds.left;
+                        offsetY = e.clientY - rectBounds.top;
+                        e.stopPropagation(); // 阻止事件冒泡到图片容器
+                    }
+                });
+
+                // 移动端拖拽移动遮挡
+                rect.addEventListener('touchstart', (e) => {
+                    if (editMode) {
+                        isMovingMask = true;
+                        selectedMask = rect;
+                        const rectBounds = rect.getBoundingClientRect();
+                        const touch = e.touches[0];
+                        offsetX = touch.clientX - rectBounds.left;
+                        offsetY = touch.clientY - rectBounds.top;
+                        e.stopPropagation(); // 阻止事件冒泡到图片容器
+                    }
+                });
+
+                imgContainer.appendChild(rect);
+                rects.push(rect);
+                return rect;
+            }
+
+            // 编辑序号 - 修改为允许重复序号
+            function editOrderNumber(rect) {
+                const oldOrder = rect.order;
+                const newOrder = prompt('请输入新的序号:', oldOrder);
+
+                if (newOrder === null || newOrder === '' || isNaN(Number(newOrder))) {
+                    return; // 用户取消或输入无效
+                }
+
+                const numOrder = Number(newOrder);
+
+                // 直接设置序号，不再检查冲突
+                rect.order = numOrder;
+                rect.querySelector('.mask-order').textContent = numOrder;
+
+                // 重新排序
+                sortRectsByOrder();
+                
+                // 更新高亮
+                updateNextToRevealHighlight();
+            }
+
+            // 删除遮挡
+            function removeMask(rect) {
+                const index = rects.indexOf(rect);
+                if (index > -1) {
+                    rects.splice(index, 1);
+                    imgContainer.removeChild(rect);
+
+                    // 如果删除的是已揭示的遮挡，从集合中移除
+                    if (rect.style.backgroundColor === 'rgba(0, 0, 0, 0)') {
+                        revealedOrders.delete(rect.order);
+                    }
+                    
+                    // 更新高亮
+                    updateNextToRevealHighlight();
+                }
+            }
+
+            // 获取相对于图片的坐标
+            function getImageRelativeCoordinates(clientX, clientY) {
+                const imgRect = img.getBoundingClientRect();
+                const imgX = clientX - imgRect.left;
+                const imgY = clientY - imgRect.top;
+
+                // 确保坐标在图片范围内
+                const renderedSize = getRenderedImageSize();
+                const currentImgWidth = renderedSize.width;
+                const currentImgHeight = renderedSize.height;
+
+                return {
+                    x: Math.max(0, Math.min(imgX, currentImgWidth)),
+                    y: Math.max(0, Math.min(imgY, currentImgHeight))
+                };
+            }
+
+            // 创建遮挡相关事件
+            imgContainer.addEventListener('mousedown', (e) => {
+                if (editMode && e.target.tagName === 'IMG' && e.button === 0) { // 只在编辑模式下，且点击的是图片时创建
+                    isDragging = true;
+                    const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
+
+                    startX = coords.x;
+                    startY = coords.y;
+                    currentRect = createRect(startX, startY, 0, 0);
+                }
+            });
+
+            // 移动端创建遮挡
+            imgContainer.addEventListener('touchstart', (e) => {
+                if (editMode && e.target.tagName === 'IMG') {
+                    const touch = e.touches[0];
+                    const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
+
+                    isDragging = true;
+                    startX = coords.x;
+                    startY = coords.y;
+                    currentRect = createRect(startX, startY, 0, 0);
+                    e.preventDefault(); // 阻止默认行为
+                }
+            });
+
+            // 鼠标移动事件
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging && currentRect) {
+                    // 创建新遮挡
+                    const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
+                    const imgX = coords.x;
+                    const imgY = coords.y;
+
+                    const width = imgX - startX;
+                    const height = imgY - startY;
+
+                    currentRect.style.width = Math.abs(width) + 'px';
+                    currentRect.style.height = Math.abs(height) + 'px';
+                    currentRect.style.left = (width > 0 ? startX : imgX) + 'px';
+                    currentRect.style.top = (height > 0 ? startY : imgY) + 'px';
+                } else if (isMovingMask && selectedMask) {
+                    // 移动现有遮挡
+                    const coords = getImageRelativeCoordinates(e.clientX, e.clientY);
+                    let newLeft = coords.x - offsetX;
+                    let newTop = coords.y - offsetY;
+
+                    // 获取遮挡的宽度和高度
+                    const width = parseFloat(selectedMask.style.width);
+                    const height = parseFloat(selectedMask.style.height);
+                    const renderedSize = getRenderedImageSize();
+                    const currentImgWidth = renderedSize.width;
+                    const currentImgHeight = renderedSize.height;
+
+                    // 确保遮挡不会移出图片边界
+                    newLeft = Math.max(0, Math.min(newLeft, currentImgWidth - width));
+                    newTop = Math.max(0, Math.min(newTop, currentImgHeight - height));
+
+                    selectedMask.style.left = newLeft + 'px';
+                    selectedMask.style.top = newTop + 'px';
+                }
+            });
+
+            // 移动端移动事件
+            document.addEventListener('touchmove', (e) => {
+                if (isDragging && currentRect) {
+                    // 创建新遮挡
+                    const touch = e.touches[0];
+                    const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
+                    const imgX = coords.x;
+                    const imgY = coords.y;
+
+                    const width = imgX - startX;
+                    const height = imgY - startY;
+
+                    currentRect.style.width = Math.abs(width) + 'px';
+                    currentRect.style.height = Math.abs(height) + 'px';
+                    currentRect.style.left = (width > 0 ? startX : imgX) + 'px';
+                    currentRect.style.top = (height > 0 ? startY : imgY) + 'px';
+
+                    e.preventDefault(); // 阻止默认行为如滚动
+                } else if (isMovingMask && selectedMask) {
+                    // 移动现有遮挡
+                    const touch = e.touches[0];
+                    const coords = getImageRelativeCoordinates(touch.clientX, touch.clientY);
+                    let newLeft = coords.x - offsetX;
+                    let newTop = coords.y - offsetY;
+
+                    // 获取遮挡的宽度和高度
+                    const width = parseFloat(selectedMask.style.width);
+                    const height = parseFloat(selectedMask.style.height);
+                    const renderedSize = getRenderedImageSize();
+                    const currentImgWidth = renderedSize.width;
+                    const currentImgHeight = renderedSize.height;
+
+                    // 确保遮挡不会移出图片边界
+                    newLeft = Math.max(0, Math.min(newLeft, currentImgWidth - width));
+                    newTop = Math.max(0, Math.min(newTop, currentImgHeight - height));
+
+                    selectedMask.style.left = newLeft + 'px';
+                    selectedMask.style.top = newTop + 'px';
+
+                    e.preventDefault(); // 阻止默认行为
+                }
+            });
+
+            // 鼠标抬起事件
+            document.addEventListener('mouseup', (e) => {
+                if (isDragging && currentRect) {
+                    // 检查是否是有效的矩形（宽高都大于5像素）
+                    const width = parseFloat(currentRect.style.width);
+                    const height = parseFloat(currentRect.style.height);
+
+                    if (width < 5 || height < 5) {
+                        // 太小的矩形视为无效，移除
+                        imgContainer.removeChild(currentRect);
+                        const index = rects.indexOf(currentRect);
+                        if (index > -1) {
+                            rects.splice(index, 1);
+                        }
+                    } else {
+                        // 有效的矩形，更新高亮
+                        updateNextToRevealHighlight();
+                    }
+                }
+
+                isDragging = false;
+                isMovingMask = false;
+                currentRect = null;
+                selectedMask = null;
+            });
+
+            // 移动端松开事件
+            document.addEventListener('touchend', (e) => {
+                if (isDragging && currentRect) {
+                    // 检查是否是有效的矩形（宽高都大于5像素）
+                    const width = parseFloat(currentRect.style.width);
+                    const height = parseFloat(currentRect.style.height);
+
+                    if (width < 5 || height < 5) {
+                        // 太小的矩形视为无效，移除
+                        imgContainer.removeChild(currentRect);
+                        const index = rects.indexOf(currentRect);
+                        if (index > -1) {
+                            rects.splice(index, 1);
+                        }
+                    } else {
+                        // 有效的矩形，更新高亮
+                        updateNextToRevealHighlight();
+                    }
+                }
+
+                isDragging = false;
+                isMovingMask = false;
+                currentRect = null;
+                selectedMask = null;
+            });
+
+            // 切换编辑模式
+            toggleEditBtn.addEventListener('click', () => {
+                editMode = !editMode;
+                updateEditModeUI();
+            });
+
+            // 更新编辑模式UI
+            function updateEditModeUI() {
+                toggleEditBtn.textContent = editMode ? '关闭编辑模式' : '开启编辑模式';
+                toggleEditBtn.classList.toggle('active', editMode);
+
+                // 更新所有遮挡的光标样式
+                rects.forEach(rect => {
+                    rect.style.cursor = editMode ? 'move' : 'pointer';
+                });
+
+                // 更新图片容器的光标样式
+                imgContainer.style.cursor = editMode ? 'crosshair' : 'default';
+                
+                // 编辑模式切换时仍保持高亮
+                updateNextToRevealHighlight();
+            }
+
+            // 显示坐标弹窗
+            function showCoordsModal(coords) {
+                const modal = document.getElementById('coordsModal');
+                const textarea = document.getElementById('coordsTextarea');
+                const closeBtn = modal.querySelector('.modal-close');
+                
+                textarea.value = coords;
+                modal.style.display = 'block';
+                
+                // 选中文本便于复制
+                setTimeout(() => {
+                    textarea.select();
+                    textarea.setSelectionRange(0, 99999); // 移动端兼容
+                }, 100);
+                
+                // 关闭按钮事件
+                closeBtn.onclick = () => {
+                    modal.style.display = 'none';
+                };
+                
+                // 点击模态框外部关闭
+                window.onclick = (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                };
+            }
+
+            // 复制坐标按钮事件
+            document.getElementById('copyCoords').addEventListener('click', () => {
+                // 转换为百分比坐标
+                const renderedSize = getRenderedImageSize();
+                const currentImgWidth = renderedSize.width;
+                const currentImgHeight = renderedSize.height;
+
+                const coords = rects.map(rect => {
+                    const l = parseFloat(rect.style.left);
+                    const t = parseFloat(rect.style.top);
+                    const w = parseFloat(rect.style.width);
+                    const h = parseFloat(rect.style.height);
+
+                    // 计算百分比值（保留两位小数）
+                    const xPercent = (l / currentImgWidth * 100).toFixed(2);
+                    const yPercent = (t / currentImgHeight * 100).toFixed(2);
+                    const widthPercent = (w / currentImgWidth * 100).toFixed(2);
+                    const heightPercent = (h / currentImgHeight * 100).toFixed(2);
+
+                    return `${xPercent},${yPercent},${widthPercent},${heightPercent},${rect.order}`;
+                }).filter(coord => !coord.includes('NaN')).join(';');
+
+                if (coords) {
+                    showCoordsModal(coords);
+                } else {
+                    alert('没有可复制的坐标');
+                }
+            });
+
+            // 找出下一个要揭示的序号
+            function findNextOrderToReveal() {
+                // 按照序号从小到大顺序查找未揭示的序号
+                sortRectsByOrder();
+
+                for (let i = 0; i < rects.length; i++) {
+                    const rect = rects[i];
+                    if (rect.style.backgroundColor !== 'rgba(0, 0, 0, 0)' && !revealedOrders.has(rect.order)) {
+                        return rect.order;
+                    }
+                }
+
+                return null; // 所有序号都已揭示
+            }
+
+            // 揭示控制功能 - 修改为按序号批量揭示
+            function revealNext() {
+                // 找出下一个未揭示的序号
+                const nextOrder = findNextOrderToReveal();
+
+                if (nextOrder !== null) {
+                    // 揭示所有具有相同序号的遮挡
+                    rects.forEach(rect => {
+                        if (rect.order === nextOrder && rect.style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                            rect.style.backgroundColor = 'rgba(0,0,0,0)';
+                            rect.style.borderColor = 'transparent'; // 隐藏边框
+
+                            // 隐藏序号
+                            const orderElement = rect.querySelector('.mask-order');
+                            if (orderElement) {
+                                orderElement.style.display = 'none';
+                            }
+                        }
+                    });
+
+                    // 记录已揭示的序号
+                    revealedOrders.add(nextOrder);
+                    
+                    // 更新高亮
+                    updateNextToRevealHighlight();
+
+                    // 检查是否所有遮挡都已揭示
+                    if (areAllMasksRevealed()) {
+                        //setTimeout(flipToBack, 500); // 延迟500ms翻转，给用户时间看到内容
+                        flipToBack()
+                    }
+                }
+            }
+            globalThis["userJs1"] = () => revealNext()
+            document.getElementById('revealNext').addEventListener('click', revealNext);
+
+            function hideLast() {
+                // 找出最大的已揭示序号
+                let lastRevealedOrder = null;
+                let maxOrder = -Infinity;
+
+                revealedOrders.forEach(order => {
+                    if (order > maxOrder) {
+                        maxOrder = order;
+                        lastRevealedOrder = order;
+                    }
+                });
+
+                if (lastRevealedOrder !== null) {
+                    // 隐藏所有具有该序号的遮挡
+                    rects.forEach(rect => {
+                        if (rect.order === lastRevealedOrder) {
+                            rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
+                            rect.style.borderColor = 'red'; // 显示边框
+
+                            // 显示序号
+                            const orderElement = rect.querySelector('.mask-order');
+                            if (orderElement) {
+                                orderElement.style.display = 'block';
+                            }
+                        }
+                    });
+
+                    // 从已揭示序号集合中移除
+                    revealedOrders.delete(lastRevealedOrder);
+                    
+                    // 更新高亮
+                    updateNextToRevealHighlight();
+                }
+            }
+            globalThis["userJs2"] = () => hideLast()
+
+            // 清理函数
+            window.addEventListener('beforeunload', () => {
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
+                }
+            });
+            
+            // 确保标签格式化（兼容各种加载情况）
+            setTimeout(formatTags, 100);
+            setTimeout(formatTags, 300);
+            setTimeout(formatTags, 500);
+            
+            // 在DOM完全加载后再次尝试
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', formatTags);
+            } else {
+                formatTags();
+            }
+            
+            // window.load事件（针对某些Anki版本）
+            window.addEventListener('load', formatTags);
+            
+            // 暴露格式化函数到全局（以防Anki需要）
+            window.formatAnkiTags = formatTags;
+        })();
+    </script>

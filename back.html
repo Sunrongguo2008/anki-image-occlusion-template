@@ -1,0 +1,526 @@
+<!-- Back Template -->
+<div class="container back-scroll-page">
+    <div class="deck-info" id="deckInfo">{{Deck}}</div>
+    <div class="question">{{Question}}</div>
+
+    <div class="main-image-container image-viewport" id="imageViewportBack">
+        <div class="main-image" id="mainImage" style="position: relative; display: inline-block;">
+            {{Image}}
+        </div>
+        <div id="zoomControlsBack" class="zoom-controls-fixed" aria-label="图片缩放控件">
+            <button id="zoomOutBtnBack" class="zoom-btn" type="button" aria-label="缩小图片">-</button>
+            <button id="zoomInBtnBack" class="zoom-btn" type="button" aria-label="放大图片">+</button>
+        </div>
+    </div>
+
+    {{#Answer}}
+        <div class="section-label">答案</div>
+        <div class="simple-answer">
+            {{Answer}}
+        </div>
+    {{/Answer}}
+
+    {{#Tags}}
+        <div class="tags-container tags-chip-list">
+            {{Tags}}
+        </div>
+    {{/Tags}}
+
+    {{#Note}}
+        <div class="note-hint">往下滑动查看笔记</div>
+        <div class="simple-note">
+            {{Note}}
+        </div>
+    {{/Note}}
+
+    <script>
+        (() => {
+            if (document.body) {
+                document.body.classList.remove('front-mode');
+                document.body.classList.add('back-mode');
+            }
+
+            let resizeObserver = null;
+            let naturalImageWidth = 0;
+            let naturalImageHeight = 0;
+            let baseFitScale = 1;
+            let userZoomFactor = 1;
+            let lastImageWidth = 0;
+            let lastImageHeight = 0;
+            let hotkeysInitialized = false;
+            let imagePanX = 0;
+            let imagePanY = 0;
+            let isMousePanningImage = false;
+            let mousePanStartX = 0;
+            let mousePanStartY = 0;
+            let mousePanOriginX = 0;
+            let mousePanOriginY = 0;
+            let isTouchPanningImage = false;
+            let touchPanStartX = 0;
+            let touchPanStartY = 0;
+            let touchPanOriginX = 0;
+            let touchPanOriginY = 0;
+            let isTouchPinchingImage = false;
+            let pinchStartDistance = 0;
+            let pinchStartZoom = 1;
+
+            const ZOOM_STEP = 0.15;
+            const MIN_USER_ZOOM = 0.3;
+            const processedHotkeyEvents = new WeakSet();
+
+            const imgContainer = document.getElementById('mainImage');
+            const img = imgContainer ? imgContainer.querySelector('img') : null;
+            const mainImageContainer = document.getElementById('imageViewportBack');
+            const zoomInBtn = document.getElementById('zoomInBtnBack');
+            const zoomOutBtn = document.getElementById('zoomOutBtnBack');
+
+            function parsePixelValue(value) {
+                const parsedValue = parseFloat(value);
+                return Number.isFinite(parsedValue) ? parsedValue : 0;
+            }
+
+            function clamp(value, minValue, maxValue) {
+                return Math.min(Math.max(value, minValue), maxValue);
+            }
+
+            function formatDeckInfo() {
+                const deckInfoElement = document.getElementById('deckInfo');
+                if (deckInfoElement) {
+                    deckInfoElement.textContent = deckInfoElement.textContent.replace(/::/g, '/');
+                }
+            }
+
+            function formatTags() {
+                const tagsContainer = document.querySelector('.tags-container');
+                if (!tagsContainer || tagsContainer.querySelector('.tag')) {
+                    return;
+                }
+
+                const tagsText = (tagsContainer.textContent || tagsContainer.innerText || '').trim();
+                if (!tagsText) {
+                    return;
+                }
+
+                const tags = tagsText.split(/\s+/).filter(tag => tag && tag.trim());
+                if (tags.length === 0) {
+                    return;
+                }
+
+                tagsContainer.innerHTML = '';
+                tags.forEach(tag => {
+                    const span = document.createElement('span');
+                    span.className = 'tag';
+                    span.textContent = tag;
+                    tagsContainer.appendChild(span);
+                });
+            }
+
+            function setupTagsObserver() {
+                const tagsContainer = document.querySelector('.tags-container');
+                if (!tagsContainer || !window.MutationObserver) {
+                    return;
+                }
+
+                const observer = new MutationObserver(() => {
+                    if (!tagsContainer.querySelector('.tag')) {
+                        formatTags();
+                    }
+                });
+
+                observer.observe(tagsContainer, {
+                    childList: true,
+                    characterData: true,
+                    subtree: true
+                });
+            }
+
+            function getRenderedImageSize() {
+                if (!img) {
+                    return {
+                        width: 0,
+                        height: 0
+                    };
+                }
+
+                const rect = img.getBoundingClientRect();
+                return {
+                    width: Math.max(0, rect.width || img.offsetWidth || img.width || 0),
+                    height: Math.max(0, rect.height || img.offsetHeight || img.height || 0)
+                };
+            }
+
+            function getImageViewportSize() {
+                if (!mainImageContainer) {
+                    return {
+                        width: 0,
+                        height: 0
+                    };
+                }
+
+                return {
+                    width: Math.max(0, mainImageContainer.clientWidth || mainImageContainer.getBoundingClientRect().width),
+                    height: Math.max(0, mainImageContainer.clientHeight || mainImageContainer.getBoundingClientRect().height)
+                };
+            }
+
+            function computeBaseFitScale() {
+                if (!naturalImageWidth || !naturalImageHeight || !mainImageContainer) {
+                    return 1;
+                }
+
+                const viewportSize = getImageViewportSize();
+                const widthScale = viewportSize.width / naturalImageWidth;
+                const heightScale = viewportSize.height / naturalImageHeight;
+                const calculatedScale = Math.min(widthScale, heightScale);
+
+                if (!Number.isFinite(calculatedScale) || calculatedScale <= 0) {
+                    return 1;
+                }
+
+                return calculatedScale;
+            }
+
+            function applyImageScale() {
+                if (!img || !naturalImageWidth || !naturalImageHeight) {
+                    return;
+                }
+
+                const targetScale = Math.max(0.01, baseFitScale * userZoomFactor);
+                img.style.width = Math.max(1, naturalImageWidth * targetScale) + 'px';
+                img.style.height = Math.max(1, naturalImageHeight * targetScale) + 'px';
+            }
+
+            function clampImagePan() {
+                if (!mainImageContainer || !imgContainer) {
+                    return;
+                }
+
+                const viewportRect = mainImageContainer.getBoundingClientRect();
+                const imageRect = imgContainer.getBoundingClientRect();
+
+                if (imageRect.width <= viewportRect.width) {
+                    imagePanX = 0;
+                } else {
+                    if (imageRect.left > viewportRect.left) {
+                        imagePanX -= (imageRect.left - viewportRect.left);
+                    }
+                    if (imageRect.right < viewportRect.right) {
+                        imagePanX += (viewportRect.right - imageRect.right);
+                    }
+                }
+
+                if (imageRect.height <= viewportRect.height) {
+                    imagePanY = 0;
+                } else {
+                    if (imageRect.top > viewportRect.top) {
+                        imagePanY -= (imageRect.top - viewportRect.top);
+                    }
+                    if (imageRect.bottom < viewportRect.bottom) {
+                        imagePanY += (viewportRect.bottom - imageRect.bottom);
+                    }
+                }
+            }
+
+            function applyImagePan() {
+                if (!imgContainer) {
+                    return;
+                }
+
+                imgContainer.style.transform = `translate(${imagePanX}px, ${imagePanY}px)`;
+            }
+
+            function syncImagePan() {
+                applyImagePan();
+                clampImagePan();
+                applyImagePan();
+            }
+
+            function handleImageResize() {
+                const renderedSize = getRenderedImageSize();
+                const currentWidth = renderedSize.width;
+                const currentHeight = renderedSize.height;
+
+                if (currentWidth <= 0 || currentHeight <= 0) {
+                    return;
+                }
+
+                if (Math.abs(currentWidth - lastImageWidth) < 1 && Math.abs(currentHeight - lastImageHeight) < 1) {
+                    return;
+                }
+
+                lastImageWidth = currentWidth;
+                lastImageHeight = currentHeight;
+                syncImagePan();
+            }
+
+            function setUserZoomFactor(nextFactor) {
+                userZoomFactor = Math.max(nextFactor, MIN_USER_ZOOM);
+                applyImageScale();
+                handleImageResize();
+            }
+
+            function zoomIn() {
+                setUserZoomFactor(userZoomFactor * (1 + ZOOM_STEP));
+            }
+
+            function zoomOut() {
+                setUserZoomFactor(userZoomFactor / (1 + ZOOM_STEP));
+            }
+
+            function refreshFitScaleOnViewportChange() {
+                baseFitScale = computeBaseFitScale();
+                applyImageScale();
+                handleImageResize();
+            }
+
+            function setupZoomControls() {
+                if (!zoomInBtn || !zoomOutBtn) {
+                    return;
+                }
+
+                zoomInBtn.addEventListener('click', () => {
+                    zoomIn();
+                });
+
+                zoomOutBtn.addEventListener('click', () => {
+                    zoomOut();
+                });
+            }
+
+            function setupImageGestureControls() {
+                if (!mainImageContainer || !imgContainer) {
+                    return;
+                }
+
+                mainImageContainer.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0) {
+                        return;
+                    }
+                    if (!e.target || (e.target.tagName !== 'IMG' && !e.target.closest('.main-image'))) {
+                        return;
+                    }
+
+                    isMousePanningImage = true;
+                    mousePanStartX = e.clientX;
+                    mousePanStartY = e.clientY;
+                    mousePanOriginX = imagePanX;
+                    mousePanOriginY = imagePanY;
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isMousePanningImage) {
+                        return;
+                    }
+                    imagePanX = mousePanOriginX + (e.clientX - mousePanStartX);
+                    imagePanY = mousePanOriginY + (e.clientY - mousePanStartY);
+                    syncImagePan();
+                });
+
+                document.addEventListener('mouseup', () => {
+                    isMousePanningImage = false;
+                });
+
+                mainImageContainer.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 2) {
+                        isTouchPinchingImage = true;
+                        isTouchPanningImage = false;
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        pinchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                        pinchStartZoom = userZoomFactor;
+                        e.preventDefault();
+                        return;
+                    }
+
+                    if (e.touches.length === 1) {
+                        isTouchPinchingImage = false;
+                        isTouchPanningImage = true;
+                        touchPanStartX = e.touches[0].clientX;
+                        touchPanStartY = e.touches[0].clientY;
+                        touchPanOriginX = imagePanX;
+                        touchPanOriginY = imagePanY;
+                    }
+                }, {
+                    passive: false
+                });
+
+                mainImageContainer.addEventListener('touchmove', (e) => {
+                    if (isTouchPinchingImage && e.touches.length >= 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const nextDistance = Math.sqrt(dx * dx + dy * dy);
+                        if (pinchStartDistance > 0 && nextDistance > 0) {
+                            setUserZoomFactor(pinchStartZoom * (nextDistance / pinchStartDistance));
+                        }
+                        e.preventDefault();
+                        return;
+                    }
+
+                    if (isTouchPanningImage && e.touches.length === 1) {
+                        imagePanX = touchPanOriginX + (e.touches[0].clientX - touchPanStartX);
+                        imagePanY = touchPanOriginY + (e.touches[0].clientY - touchPanStartY);
+                        syncImagePan();
+                        e.preventDefault();
+                    }
+                }, {
+                    passive: false
+                });
+
+                mainImageContainer.addEventListener('touchend', (e) => {
+                    if (isTouchPinchingImage && e.touches.length < 2) {
+                        isTouchPinchingImage = false;
+                    }
+                    if (isTouchPanningImage && e.touches.length === 0) {
+                        isTouchPanningImage = false;
+                    }
+                });
+
+                mainImageContainer.addEventListener('touchcancel', () => {
+                    isTouchPinchingImage = false;
+                    isTouchPanningImage = false;
+                });
+            }
+
+            function handleKeyboardShortcuts(e) {
+                if (processedHotkeyEvents.has(e)) {
+                    return;
+                }
+                processedHotkeyEvents.add(e);
+
+                if (e.ctrlKey || e.metaKey || e.altKey) {
+                    return;
+                }
+
+                if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') {
+                    e.preventDefault();
+                    zoomIn();
+                }
+
+                if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
+                    e.preventDefault();
+                    zoomOut();
+                }
+            }
+
+            function setupKeyboardShortcuts() {
+                if (hotkeysInitialized) {
+                    return;
+                }
+
+                document.addEventListener('keydown', handleKeyboardShortcuts, true);
+                window.addEventListener('keydown', handleKeyboardShortcuts, true);
+                hotkeysInitialized = true;
+            }
+
+            function setupRealTimeResizeMonitoring() {
+                if (window.ResizeObserver) {
+                    resizeObserver = new ResizeObserver(entries => {
+                        for (const entry of entries) {
+                            if (entry.target === img) {
+                                handleImageResize();
+                            }
+                        }
+                    });
+                    resizeObserver.observe(img);
+                }
+
+                setInterval(() => {
+                    const renderedSize = getRenderedImageSize();
+                    const currentWidth = renderedSize.width;
+                    const currentHeight = renderedSize.height;
+
+                    if (Math.abs(currentWidth - lastImageWidth) > 1 || Math.abs(currentHeight - lastImageHeight) > 1) {
+                        handleImageResize();
+                    }
+                }, 100);
+
+                window.addEventListener('resize', () => {
+                    setTimeout(() => {
+                        refreshFitScaleOnViewportChange();
+                    }, 50);
+                });
+            }
+
+            function initializeAfterImageLoad() {
+                img.style.userSelect = 'none';
+                img.style.webkitUserSelect = 'none';
+                img.style.webkitTouchCallout = 'none';
+                img.style.userDrag = 'none';
+                img.style.webkitUserDrag = 'none';
+                img.style.maxWidth = 'none';
+                img.style.maxHeight = 'none';
+                img.draggable = false;
+                img.addEventListener('dragstart', (e) => e.preventDefault());
+
+                const initialRenderedSize = getRenderedImageSize();
+                naturalImageWidth = img.naturalWidth || initialRenderedSize.width || 1;
+                naturalImageHeight = img.naturalHeight || initialRenderedSize.height || 1;
+                baseFitScale = computeBaseFitScale();
+                userZoomFactor = 1;
+                applyImageScale();
+
+                const scaledRenderedSize = getRenderedImageSize();
+                lastImageWidth = scaledRenderedSize.width;
+                lastImageHeight = scaledRenderedSize.height;
+
+                setupZoomControls();
+                setupImageGestureControls();
+                setupKeyboardShortcuts();
+                setupRealTimeResizeMonitoring();
+                syncImagePan();
+
+                if (document.body) {
+                    if (!document.body.hasAttribute('tabindex')) {
+                        document.body.tabIndex = -1;
+                    }
+
+                    const focusBody = () => {
+                        try {
+                            window.focus();
+                        } catch (e) {
+                            // 某些环境禁止焦点调用
+                        }
+
+                        try {
+                            document.body.focus({
+                                preventScroll: true
+                            });
+                        } catch (e) {
+                            try {
+                                document.body.focus();
+                            } catch (err) {
+                                // 忽略
+                            }
+                        }
+                    };
+
+                    focusBody();
+                    setTimeout(focusBody, 80);
+                    setTimeout(focusBody, 220);
+                }
+            }
+
+            formatDeckInfo();
+            formatTags();
+            setupTagsObserver();
+
+            if (img && img.complete) {
+                initializeAfterImageLoad();
+            } else if (img) {
+                img.onload = initializeAfterImageLoad;
+            }
+
+            setTimeout(formatTags, 100);
+            setTimeout(formatTags, 300);
+            setTimeout(formatTags, 500);
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', formatTags);
+            } else {
+                formatTags();
+            }
+
+            window.addEventListener('load', formatTags);
+        })();
+    </script>
+</div>
