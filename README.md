@@ -112,9 +112,10 @@ x%,y%,w%,h%,order;x%,y%,w%,h%,order;...
 桌面端正面（深色） | 桌面端背面（深色）
 <img src="https://github.com/user-attachments/assets/15d034b4-0516-4eab-a610-5ceba060013c" > | <img src="https://github.com/user-attachments/assets/98623ecb-de1b-41a1-85a9-c75d94c099d3" >
 移动端正面（浅色） | 移动端背面（浅色）
-<img src="https://github.com/user-attachments/assets/ea63478c-aae2-43cb-afc6-d31afbe3406f" > | <img src="https://github.com/user-attachments/assets/b96e8468-530e-4347-a652-69b2aeeb80b6" >
+<img src="https://github.com/user-attachments/assets/3a879c28-80f1-4522-9a26-f65608fb33c9" > | <img src="https://github.com/user-attachments/assets/21cf3f54-1f3f-490b-8e5c-1bcad6f4769b" >
 移动端正面（深色） | 移动端背面（深色）
-<img src="https://github.com/user-attachments/assets/d3481cda-dae0-4edf-b452-06bc76a505ce" > | <img src="https://github.com/user-attachments/assets/cc0859be-8c14-41f0-b4a1-bb80ab7ac403" >
+<img src="https://github.com/user-attachments/assets/729ed8d9-97c0-429a-b4a2-1642495fd6b2" > | <img src="https://github.com/user-attachments/assets/c774cc0c-54a2-448f-bf98-ba9d94e584eb" >
+
 
 ## 参与贡献
 
