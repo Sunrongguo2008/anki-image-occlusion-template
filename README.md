@@ -104,13 +104,11 @@ x%,y%,w%,h%,order;x%,y%,w%,h%,order;...
 
 ## 效果预览
 
-> 以下截图资源暂保留，截图待更新到新布局（文案已更新）。
-
 桌面端正面（浅色） | 桌面端背面（浅色）
 ---|---
-<img src="https://github.com/user-attachments/assets/7c09810c-4540-48ba-8b7a-e7114e7f7e42" > | <img src="https://github.com/user-attachments/assets/4a3a3331-49ca-411d-a19d-2213233a46c3" >
+<img src="https://github.com/user-attachments/assets/69d6f1b6-7db9-4e3c-81d0-542f4d098a35" > | <img src="https://github.com/user-attachments/assets/c1619ebe-2de6-47bb-92d1-661576daa3f0" >
 桌面端正面（深色） | 桌面端背面（深色）
-<img src="https://github.com/user-attachments/assets/15d034b4-0516-4eab-a610-5ceba060013c" > | <img src="https://github.com/user-attachments/assets/98623ecb-de1b-41a1-85a9-c75d94c099d3" >
+<img src="https://github.com/user-attachments/assets/6662da1d-ef03-4624-9fd7-5cdcb2c54daa" > | <img src="https://github.com/user-attachments/assets/ed963dc0-693f-4c4e-b1e3-7dc4a7c58e94" />
 移动端正面（浅色） | 移动端背面（浅色）
 <img src="https://github.com/user-attachments/assets/3a879c28-80f1-4522-9a26-f65608fb33c9" > | <img src="https://github.com/user-attachments/assets/21cf3f54-1f3f-490b-8e5c-1bcad6f4769b" >
 移动端正面（深色） | 移动端背面（深色）
