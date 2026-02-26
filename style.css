@@ -956,6 +956,73 @@ body.back-mode {
     color: var(--text-primary);
 }
 
+.simple-note {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.65;
+    text-align: left;
+}
+
+.simple-note > :first-child {
+    margin-top: 0 !important;
+}
+
+.simple-note > :last-child {
+    margin-bottom: 0 !important;
+}
+
+.simple-note p {
+    margin: 0.45em 0;
+}
+
+.simple-note ul,
+.simple-note ol {
+    margin: 0.55em 0;
+    padding-left: 1.4em;
+    list-style-position: outside;
+}
+
+.simple-note ul {
+    list-style-type: disc;
+}
+
+.simple-note ol {
+    list-style-type: decimal;
+}
+
+.simple-note li {
+    margin: 0.25em 0;
+}
+
+.simple-note h1,
+.simple-note h2,
+.simple-note h3,
+.simple-note h4,
+.simple-note h5,
+.simple-note h6 {
+    margin: 0.6em 0 0.4em;
+    line-height: 1.35;
+}
+
+.simple-note pre {
+    margin: 0.6em 0;
+    padding: 0.6em 0.7em;
+    border-radius: 6px;
+    background: rgba(113, 128, 150, 0.12);
+    overflow-x: auto;
+}
+
+.simple-note code {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.simple-note img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0.55em 0;
+}
+
 .nightMode .simple-answer,
 .nightMode .simple-note {
     background: rgba(255, 255, 255, 0.05);
