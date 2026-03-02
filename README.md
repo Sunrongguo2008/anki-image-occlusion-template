@@ -1,6 +1,18 @@
 # Anki 图片遮挡模板（跨端交互版）
 
-跨端图片遮挡复习模板，支持前面遮挡编辑、正反面缩放和平移手势，无需插件即可在 Anki Desktop 和移动端使用。
+跨端图片遮挡复习模板，支持前面遮挡编辑、正反面缩放和平移手势，**无需插件**即可在 Anki Desktop 和移动端使用。
+
+## 效果预览
+
+桌面端正面（浅色） | 桌面端背面（浅色）
+---|---
+<img src="https://github.com/user-attachments/assets/69d6f1b6-7db9-4e3c-81d0-542f4d098a35" > | <img src="https://github.com/user-attachments/assets/c1619ebe-2de6-47bb-92d1-661576daa3f0" >
+桌面端正面（深色） | 桌面端背面（深色）
+<img src="https://github.com/user-attachments/assets/6662da1d-ef03-4624-9fd7-5cdcb2c54daa" > | <img src="https://github.com/user-attachments/assets/ed963dc0-693f-4c4e-b1e3-7dc4a7c58e94" />
+移动端正面（浅色） | 移动端背面（浅色）
+<img src="https://github.com/user-attachments/assets/3a879c28-80f1-4522-9a26-f65608fb33c9" > | <img src="https://github.com/user-attachments/assets/21cf3f54-1f3f-490b-8e5c-1bcad6f4769b" >
+移动端正面（深色） | 移动端背面（深色）
+<img src="https://github.com/user-attachments/assets/729ed8d9-97c0-429a-b4a2-1642495fd6b2" > | <img src="https://github.com/user-attachments/assets/c774cc0c-54a2-448f-bf98-ba9d94e584eb" >
 
 ## 快速开始
 
@@ -102,19 +114,6 @@ x%,y%,w%,h%,order;x%,y%,w%,h%,order;...
    - 可能出现，属于设备渲染性能上限表现。
 4. 遮挡位置与图片不一致？
    - 优先检查 `Opinions` 是否为最新复制结果，格式是否为 `x%,y%,w%,h%,order;...`，尝试重建遮挡并重新覆盖 `Opinions`。
-
-## 效果预览
-
-桌面端正面（浅色） | 桌面端背面（浅色）
----|---
-<img src="https://github.com/user-attachments/assets/69d6f1b6-7db9-4e3c-81d0-542f4d098a35" > | <img src="https://github.com/user-attachments/assets/c1619ebe-2de6-47bb-92d1-661576daa3f0" >
-桌面端正面（深色） | 桌面端背面（深色）
-<img src="https://github.com/user-attachments/assets/6662da1d-ef03-4624-9fd7-5cdcb2c54daa" > | <img src="https://github.com/user-attachments/assets/ed963dc0-693f-4c4e-b1e3-7dc4a7c58e94" />
-移动端正面（浅色） | 移动端背面（浅色）
-<img src="https://github.com/user-attachments/assets/3a879c28-80f1-4522-9a26-f65608fb33c9" > | <img src="https://github.com/user-attachments/assets/21cf3f54-1f3f-490b-8e5c-1bcad6f4769b" >
-移动端正面（深色） | 移动端背面（深色）
-<img src="https://github.com/user-attachments/assets/729ed8d9-97c0-429a-b4a2-1642495fd6b2" > | <img src="https://github.com/user-attachments/assets/c774cc0c-54a2-448f-bf98-ba9d94e584eb" >
-
 
 ## 参与贡献
 
