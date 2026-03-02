@@ -12,15 +12,15 @@
 
 | 字段 | 是否必填 | 用途 | 正面（front） | 背面（back） |
 | --- | --- | --- | --- | --- |
-| `Deck` | 建议 | 显示牌组路径信息 | 显示 | 显示 |
+| `Deck` | Anki自动填充 | 显示牌组路径信息 | 显示 | 显示 |
 | `Question` | 建议 | 题干文本 | 显示 | 显示 |
 | `Image` | 必填 | 图片主体（遮挡与缩放对象） | 显示 | 显示 |
-| `Opinions` | 遮挡卡必填 | 遮挡坐标串 | 读取并渲染遮挡 | 不显示遮挡编辑 |
+| `Opinions` | 据指南必填 | 遮挡坐标串 | 读取并渲染遮挡 | 不显示遮挡编辑 |
 | `Answer` | 可选 | 答案文本 | 不显示 | 显示 |
 | `Tags` | 可选 | 标签 chip | 显示 | 显示 |
 | `Note` | 可选 | 备注内容 | 不显示 | 显示（带提示） |
 
-`Opinions` 固定格式：
+`Opinions` 固定格式（不了解不影响使用）：
 
 ```text
 x%,y%,w%,h%,order;x%,y%,w%,h%,order;...
@@ -88,19 +88,20 @@ x%,y%,w%,h%,order;x%,y%,w%,h%,order;...
 
 - ✅ Anki Desktop（2.1.50+）
 - ✅ AnkiDroid（最新版）
+- ❓ AnkiMobile（不知道啊，我没苹果手机。用的请在[Issue](https://github.com/Sunrongguo2008/anki-image-occlusion-template/issues)上回答一下我能不能用）
 - front 为固定页，不允许纵向滚动。
 - back 允许纵向滚动，用于查看下方答案/笔记。
 
 ## 常见问题（FAQ）
 
-1. `+/-` 快捷键无反应怎么办？
-   - 先点击一次卡片内容区，再按快捷键。
+1. ~~`+/-` 快捷键无反应怎么办？~~（应该已修复）
+   - ~~先点击一次卡片内容区，再按快捷键。~~
 2. 更换了图片后遮挡错位？
    - 需要重建遮挡并重新覆盖 `Opinions`。
 3. 放大后卡顿正常吗？
    - 可能出现，属于设备渲染性能上限表现。
 4. 遮挡位置与图片不一致？
-   - 优先检查 `Opinions` 是否为最新复制结果，格式是否为 `x%,y%,w%,h%,order;...`。
+   - 优先检查 `Opinions` 是否为最新复制结果，格式是否为 `x%,y%,w%,h%,order;...`，尝试重建遮挡并重新覆盖 `Opinions`。
 
 ## 效果预览
 
@@ -117,8 +118,8 @@ x%,y%,w%,h%,order;x%,y%,w%,h%,order;...
 
 ## 参与贡献
 
-- 提交 Issue 反馈问题或建议。
-- 提交 Pull Request 改进模板。
+- 提交 [Issue](https://github.com/Sunrongguo2008/anki-image-occlusion-template/issues) 反馈问题或建议。
+- 提交 [Pull Request](https://github.com/Sunrongguo2008/anki-image-occlusion-template/pulls) 改进模板。
 
 ## 致谢
 
