@@ -839,7 +839,7 @@
                     top: y + 'px',
                     width: width + 'px',
                     height: height + 'px',
-                    backgroundColor: 'rgba(0,0,0,0.9)',
+                    backgroundColor: 'rgba(0,0,0,1)',
                     border: '2px solid red',
                     display: 'flex',
                     justifyContent: 'center',
@@ -869,7 +869,7 @@
                 function toggleMaskVisibility(rect) {
                     if (rect.style.backgroundColor === 'rgba(0, 0, 0, 0)') {
                         // 当前是透明的，变为不透明
-                        rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
+                        rect.style.backgroundColor = 'rgba(0,0,0,1)';
                         rect.style.borderColor = 'red'; // 显示边框
                         const orderElement = rect.querySelector('.mask-order');
                         if (orderElement) {
@@ -1342,7 +1342,7 @@
                     // 隐藏所有具有该序号的遮挡
                     rects.forEach(rect => {
                         if (rect.order === lastRevealedOrder) {
-                            rect.style.backgroundColor = 'rgba(0,0,0,0.9)';
+                            rect.style.backgroundColor = 'rgba(0,0,0,1)';
                             rect.style.borderColor = 'red'; // 显示边框
 
                             // 显示序号
