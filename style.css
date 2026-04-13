@@ -16,7 +16,7 @@
     --button-active: #4299e1;
     --button-text: #2d3748;
     --button-active-text: #ffffff;
-    --mask-bg: rgba(0, 0, 0, 0.85);
+    --mask-bg: rgba(0, 0, 0, 1);
     --mask-border: #e53e3e;
     --mask-text: #ffffff;
     --image-container: #f8fafc;
